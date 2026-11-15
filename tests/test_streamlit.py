@@ -1,0 +1,62 @@
+"""The Streamlit website, run end to end with a stand-in for Streamlit (no browser needed)."""
+import os
+import sys
+import unittest
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "tests"))
+
+
+class _Up:
+    def __init__(self, path):
+        self.name, self._b = os.path.basename(path), open(path, "rb").read()
+
+    def getvalue(self):
+        return self._b
+
+
+class TestStreamlitSite(unittest.TestCase):
+    def test_full_workflow_and_clean_slate(self):
+        import fake_streamlit as F
+        st = F.install()
+        app, ss = str(ROOT / "streamlit_app.py"), st.session_state
+
+        def go(*clicks):
+            st.CLICKS.update(clicks)
+            F.run(app, st)
+            self.assertEqual([p for k, p in st.LOG if k == "error"], [])
+
+        go()
+        ss["uploader"] = _Up(str(ROOT / "examples" / "MetaPy_SYNTHETIC_demo.xlsx"))
+        go("btn_read")
+        K = lambda n: f"{n}__{ss['gen']}"
+        s = ss["s"]
+        go(K("btn_select"))
+        self.assertGreaterEqual(len(s.plans), 1)
+        ss[K("approve_group")], ss[K("approve_confirm")] = list(s.plans), True
+        go(K("btn_approve"))
+        self.assertTrue(all(s.approved.values()))
+        keys = [a["key"] for a in s.extra_choices()]
+        ss[K(f"extras_{len(keys)}")] = [k for k in ("tau_ci", "multilevel") if k in keys]
+        go(K("btn_run"))
+        self.assertEqual(len(s.results), len(s.plans))
+        ss[K("p_on")], ss[K("p_box_identified")] = True, "Databases (n = 10)"
+        go(K("btn_fill"))
+        self.assertIn("studies", ss[K("p_box_included")])
+        ss[K("fmts")] = ["docx", "xlsx"]
+        go(K("btn_export"))
+        names = [n for n, _ in st.DOWNLOADS]
+        self.assertEqual(sorted(names), ["MetaPy_report.docx", "MetaPy_report.xlsx"])
+        self.assertTrue(all(len(b) > 1000 for _, b in st.DOWNLOADS))
+        old, old_gen = s, ss["gen"]
+        go("btn_read")                                        # reading a file again starts a brand-new session
+        self.assertIsNot(ss["s"], old)
+        self.assertEqual(ss["gen"], old_gen + 1)
+        self.assertEqual(ss["exports"], [])
+        self.assertEqual(ss["s"].results, {})
+
+
+if __name__ == "__main__":
+    unittest.main()

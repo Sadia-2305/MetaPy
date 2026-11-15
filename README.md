@@ -115,6 +115,13 @@ s.nma("sheet::Arms", measure="SMD", reference="Placebo", model="random", small_v
 - **Network meta-analysis**: the common-effect MD network equals an independent arm-based weighted least-squares model with study intercepts to 10⁻⁸; a star network reproduces pairwise REML; a consistent triangle gives inconsistency Q = 0; multi-arm SMD covariance matrices are positive definite; disconnected networks are refused.
 - **Not yet cross-checked against R** (please do this before publishing): 3PSM vs `metafor::selmodel`, CR2 vs `clubSandwich`, NMA τ², P-scores and Q decomposition vs `netmeta`, Bayesian results vs `bayesmeta`. The formulas follow those packages' published methods, but agreement has only been shown on the cases above.
 
+## Online version (Streamlit)
+`streamlit_app.py` is a website version of the same five steps, for Streamlit Community Cloud (or any server):
+`pip install -r requirements.txt` then `streamlit run streamlit_app.py`. It runs in website mode: the uploaded file
+and all results stay in the visitor's browser session only; nothing is saved on the server or shared between users,
+and the saved-session feature is switched off. Uploads are limited to 25 MB (`.streamlit/config.toml`).
+The Colab notebook and `python -m metapy` (Gradio) keep working as before.
+
 ## PRISMA 2020 diagram: free text (5.0)
 The PRISMA form has one text box per box of the diagram: *Records identified from:*, *Records removed before screening:*, *Records screened*,
 *Records excluded*, *Reports sought for retrieval*, *Reports not retrieved*, *Reports assessed for eligibility*, *Reports excluded:*,

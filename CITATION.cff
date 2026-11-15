@@ -1,0 +1,17 @@
+cff-version: 1.2.0
+message: "If you use MetaPy, please cite it as below."
+title: "MetaPy: an intelligent, transparent meta-analysis assistant"
+type: software
+authors:
+  - family-names: Nadeem
+    given-names: Sadia
+    orcid: "https://orcid.org/0009-0008-5510-9456"
+version: 5.0.0
+date-released: 2026-11-16
+license: MIT
+keywords:
+  - meta-analysis
+  - systematic review
+  - effect size
+  - network meta-analysis
+  - PRISMA

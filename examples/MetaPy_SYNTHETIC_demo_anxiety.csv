@@ -1,0 +1,18 @@
+Study,Year,Outcome,Intervention_Arm,Country,Delivery,Mean_Age,Risk_of_Bias,N_I,N_C,Mean_Pre_I,SD_Pre_I,Mean_Pre_C,SD_Pre_C,Mean_Post_I,SD_Post_I,Mean_Post_C,SD_Post_C,r_prepost_I,r_prepost_C,Median_Post_I,Q1_Post_I,Q3_Post_I,Median_Post_C,Q1_Post_C,Q3_Post_C,Mean (SD) post I,Mean (SD) post C,t,MD (95% CI),MD,p,SMD,SMD_SE,Hedges_g,g_CI_lower,g_CI_upper
+Ahmed 2008,2008,Anxiety (HADS-A),CBT,Pakistan,Online,45.8,High,67,56,24.11,6.0,24.55,6.0,21.55,6.58,23.05,6.53,0.62,0.58,,,,,,,,,,,,,,,,,
+Baker 2009,2009,Anxiety (HADS-A),CBT,UK,Face-to-face,39.8,Low,40,43,25.11,6.0,24.07,6.0,21.21,6.89,23.05,6.53,,,,,,,,,,,,,,,,,,,
+Chen 2010,2010,Anxiety (HADS-A),CBT,China,Face-to-face,45.6,Low,36,50,24.76,6.0,23.73,6.0,19.1,6.03,22.87,5.94,0.62,0.58,,,,,,,,,,,,,,,,,
+Diaz 2011,2011,Anxiety (HADS-A),CBT,Spain,Online,56.9,Low,53,49,23.47,6.0,24.52,6.0,20.7,5.46,23.03,5.77,,,,,,,,,,,,,,,,,,,
+Evans 2012,2012,Anxiety (HADS-A),CBT,USA,Face-to-face,22.1,High,33,61,24.89,6.0,25.11,6.0,21.5,6.25,24.14,6.44,0.62,0.58,,,,,,,,,,,,,,,,,
+Farooq 2013,2013,Anxiety (HADS-A),CBT,Pakistan,Face-to-face,25.5,Low,52,64,,,,,,,,,,,23.7,19.7,27.9,26.4,22.3,30.3,,,,,,,,,,,
+Garcia 2014,2014,Anxiety (HADS-A),CBT,Mexico,Online,27.7,Low,45,47,,,,,,,,,,,24.0,20.0,28.2,25.1,21.0,29.0,,,,,,,,,,,
+Haddad 2015,2015,Anxiety (HADS-A),CBT,Jordan,Face-to-face,38.7,Low,47,27,,,,,,,,,,,,,,,,,20.8 (5.6),24.5 (6.7),,,,,,,,,
+Ito 2016,2016,Anxiety (HADS-A),CBT,Japan,Face-to-face,47.2,High,71,71,,,,,,,,,,,,,,,,,,,-2.85,,,,,,,,
+Jones 2017,2017,Anxiety (HADS-A),CBT,UK,Online,43.0,Low,73,45,,,,,,,,,,,,,,,,,,,,-1.75 (-3.72 to 0.22),,,,,,,
+Khan 2018,2018,Anxiety (HADS-A),CBT,Pakistan,Face-to-face,55.3,Low,55,66,,,,,,,,,,,,,,,,,,,,,-2.87,<0.05,,,,,
+Lopez 2019,2019,Anxiety (HADS-A),CBT,Spain,Face-to-face,58.8,Low,48,65,,,,,,,,,,,,,,,,,,,,,,,-0.5,0.193,,,
+Malik 2020,2020,Anxiety (HADS-A),CBT,Pakistan,Online,41.7,High,75,68,,,,,,,,,,,,,,,,,,,,,,,,,-0.33,-0.66,-0.0
+Nguyen 2021,2021,Anxiety (HADS-A),CBT,Vietnam,Face-to-face,37.9,Low,25,78,,,,,20.33,,23.35,,,,,,,,,,,,,,,,,,,,
+Okafor 2022,2022,Anxiety (HADS-A),CBT,Nigeria,Face-to-face,35.8,Low,44,46,25.76,6.0,24.15,6.0,21.68,6.81,23.54,5.9,0.62,0.58,,,,,,,,,,,,,,,,,
+Okafor 2022,2022,Anxiety (HADS-A),Mindfulness,Nigeria,Face-to-face,35.8,Low,36,46,24.93,6.0,24.73,6.0,21.12,6.15,23.65,5.87,0.62,0.58,,,,,,,,,,,,,,,,,
+Patel 2023,2023,Anxiety (HADS-A),CBT,India,Online,55.4,Low,64,78,23.72,6.0,26.26,6.0,23.25,5.55,25.18,6.55,,,,,,,,,,,,,,,,,,,

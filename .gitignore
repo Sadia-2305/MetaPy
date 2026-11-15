@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.venv/
+venv/
+.ipynb_checkpoints/
+
+# MetaPy outputs and saved sessions
+metapy_output/
+*.metapy
+MetaPy_report*
+
+# Never commit real review data: only files under examples/ (synthetic) are tracked
+*.xlsx
+*.xls
+*.csv
+!examples/*.xlsx
+!examples/*.csv
+*.docx
+
+# OS
+.DS_Store
+Thumbs.db

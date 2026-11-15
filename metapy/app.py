@@ -18,6 +18,14 @@ from .figures import (PRISMA_BOXES, PRISMA_OTHER_BOXES, funnel_plot, forest_plot
 from .report import FIGURE_CHOICES, TABLE_CHOICES, TEXT_CHOICES
 from .session import MetaPySession, saved_sessions
 
+# Website mode (Hugging Face Spaces or METAPY_WEB=1): many people share one server, so nothing is saved on it
+# and no saved-session list is shown (one user could otherwise open another user's data).
+WEB_MODE = os.environ.get("METAPY_WEB", "").lower() in ("1", "true", "yes") or bool(os.environ.get("SPACE_ID"))
+WEB_NOTICE = ("**Online version.** Your file is processed in memory on this server only while you use the page; MetaPy does not "
+              "store your data or results here, and nothing is shared with other users. Closing or reloading the page ends your session, "
+              "so export your report before you leave. Use de-identified, aggregate data only. To save and resume work, use the Colab or "
+              "local version.")
+
 N_RADIO, N_CHECK = 8, 2
 DEFAULT_TABLES = ["characteristics", "effects", "pooled", "sof", "extras", "derivations", "actions", "requests", "checks", "evidence", "parsing"]
 DEFAULT_FIGURES = ["summary_forest", "forest", "subgroup_forest", "funnel", "bubble", "loo", "provenance", "baujat", "rho", "network"]
@@ -48,15 +56,9 @@ def _df(df: pd.DataFrame | None) -> pd.DataFrame:
 
 
 # ======================================================================== step 1
-def on_scan(file, show_all, group_constructs=True):
-    if file is None:
-        return (None, "Upload a .csv, .tsv, .xlsx or .xlsm file first.", _df(None), _df(None), upd(choices=[], value=[]), _df(None), _df(None))
-    s = MetaPySession()
-    path = file if isinstance(file, str) else getattr(file, "name", file)
-    try:
-        rep = s.load(path, group_constructs=bool(group_constructs))
-    except Exception as exc:
-        return (None, f"**Could not read the file:** {exc}", _df(None), _df(None), upd(choices=[], value=[]), _df(None), _df(None))
+def scan_overview_md(s) -> str:
+    """Plain-text (markdown) summary of what MetaPy found in the file. Used by the Gradio and Streamlit apps."""
+    rep = s.scan_report
     o = rep.overview
     md = [f"### What MetaPy {__version__} found in `{o['file']}`",
           f"- **{o['studies']} studies**, {o['rows']} unique comparisons, {o['outcomes']} outcome(s): {', '.join(map(str, o['outcome_names']))}"]
@@ -87,15 +89,30 @@ def on_scan(file, show_all, group_constructs=True):
         if not usable.empty:
             md.append("\n**Study characteristics available for subgroup analysis / meta-regression:** " +
                       ", ".join(f"{r['characteristic']} ({r['type']})" for _, r in usable.iterrows()))
+    return "\n".join(md)
+
+
+def on_scan(file, show_all, group_constructs=True):
+    if file is None:
+        return (None, "Upload a .csv, .tsv, .xlsx or .xlsm file first.", _df(None), _df(None), upd(choices=[], value=[]), _df(None), _df(None))
+    s = MetaPySession()
+    path = file if isinstance(file, str) else getattr(file, "name", file)
+    try:
+        rep = s.load(path, group_constructs=bool(group_constructs))
+    except Exception as exc:
+        return (None, f"**Could not read the file:** {exc}", _df(None), _df(None), upd(choices=[], value=[]), _df(None), _df(None))
+    md = scan_overview_md(s)
     choices = s.plan_choices(show_all)
     rec = [p["plan_id"] for p in rep.plans if p["recommended"]]
     ev = (rep.g_inference or {}).get("evidence")
-    return (s, "\n".join(md), _df(s.ds.column_map), _df(s.ds.parse_notes), upd(choices=choices, value=rec),
+    return (s, md, _df(s.ds.column_map), _df(s.ds.parse_notes), upd(choices=choices, value=rec),
             _df(ev.drop(columns=["record_id"]) if isinstance(ev, pd.DataFrame) and not ev.empty else None),
             _df(s.ds.conflicts if not s.ds.conflicts.empty else None))
 
 
 def on_resume(path):
+    if WEB_MODE:
+        return None, "Saved sessions are not available in the online version.", upd(choices=[], value=None), upd(), upd(), plan_status(None)
     if not path:
         return None, "Choose a saved session first.", upd(choices=[], value=None), upd(), upd(), plan_status(None)
     try:
@@ -134,7 +151,7 @@ def on_select(s, plan_ids):
 
 
 def _autosave(s) -> str:
-    if s is None or s.ds is None:
+    if WEB_MODE or s is None or s.ds is None:
         return ""
     try:
         return s.save()
@@ -169,7 +186,8 @@ def plan_status(s) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def _prep_outputs(s, pid, note=""):
+def prep_summary_md(s, pid, note="") -> str:
+    """Markdown summary of one plan's data preparation. Used by the Gradio and Streamlit apps."""
     p = s.preps[pid]
     c = p.counts
     md = [f"### Data preparation: {p.plan['outcome']} — {p.measure.label}", f"*Data file: `{s.ds.source_name}`*"]
@@ -194,6 +212,12 @@ def _prep_outputs(s, pid, note=""):
         md.append("\n**MetaPy needs your decision on the questions below** before you approve.")
     else:
         md.append("\nNo open decisions. Review the table and the derivation log, then approve.")
+    return "\n".join(md)
+
+
+def _prep_outputs(s, pid, note=""):
+    p = s.preps[pid]
+    md = [prep_summary_md(s, pid, note)]
     studies = p.data[["record_id", "label", "derivation_basis", "approximations_or_assumptions", "yi", "se", "included", "exclusion_reason", "notes"]].rename(
         columns={"label": "study", "yi": f"{p.measure.short} (analysis scale)", "derivation_basis": "how obtained"})
     radios, checks = _question_updates(p.questions)
@@ -386,9 +410,8 @@ def on_approve(s, pid, confirmed):
 
 
 # ======================================================================== step 3-4
-def _results_outputs(s, which=None, note=""):
-    if not s.results:
-        return s, "No results yet.", _df(None), None, None, "", upd()
+def results_md(s, which=None, note="") -> str:
+    """Markdown summary of the results (all plans) and the additional analyses of one plan."""
     pid = which if which in s.results else next(iter(s.results))
     r = s.results[pid]
     md = []
@@ -430,6 +453,15 @@ def _results_outputs(s, which=None, note=""):
     if ex:
         md.append("\n### Additional analyses\n" + "\n".join(ex))
     md.append("\n**Are these results OK?** Use the review options below.")
+    return "\n".join(md)
+
+
+def _results_outputs(s, which=None, note=""):
+    if not s.results:
+        return s, "No results yet.", _df(None), None, None, "", upd()
+    pid = which if which in s.results else next(iter(s.results))
+    r = s.results[pid]
+    md = [results_md(s, pid, note)]
     forest = forest_plot(r) if r.main.get("status") == "Pooled" else None
     funnel = funnel_plot(r, trimfill=r.extras.get("trimfill") if "trimfill" in r.extras and "filled_y" in r.extras["trimfill"] else None) if len(r.studies) >= 10 and r.main.get("status") == "Pooled" else None
     choices = [(f"{res.prep.plan['outcome']} — {res.measure.label}", p) for p, res in s.results.items()]
@@ -510,6 +542,23 @@ def on_prisma_fill(s):
     return upd(value=txt), ("Filled from your analysis (shared control groups counted once). Edit the text freely; it is printed as written.")
 
 
+def preview_md(s, rep, prisma, n_figures) -> str:
+    """Markdown outline of a report before export."""
+    md = ["### Report preview", f"**Data file: `{s.ds.source_name}`**: if this is not the file you meant, go back to Step 1 and read the right file.",
+          f"**{n_figures} figure(s)** and **{sum(len(sec.tables) for sec in rep.sections)} table(s)** selected."]
+    if prisma is None:
+        md.append("PRISMA flow diagram: not included (optional; switch it on in the PRISMA section if you want it).")
+    elif not prisma_given(prisma):
+        md.insert(1, "> **PRISMA diagram is switched on but every box is empty**, so it is left out. Type in the PRISMA boxes and preview again.")
+    else:
+        md += [f"> **PRISMA check:** {x}" for x in prisma_checks(prisma)]
+    for sec in rep.sections:
+        md.append(f"\n**{sec.heading}**")
+        md += [f"\n{t}" for t in sec.text]
+        md += [f"- table: {n} ({len(df)} rows)" for n, df in sec.tables]
+    return "\n".join(md)
+
+
 def on_preview(s, tables, figures, texts, theme, sort, title, *prisma_vals):
     if s is None or not s.results:
         return [], "Run and accept the analysis first."
@@ -527,18 +576,7 @@ def on_preview(s, tables, figures, texts, theme, sort, title, *prisma_vals):
             gallery.append((p, f"{sec.heading}: {name}"))
     import matplotlib.pyplot as plt
     plt.close("all")
-    md = ["### Report preview", f"**Data file: `{s.ds.source_name}`**: if this is not the file you meant, go back to Step 1 and read the right file.",
-          f"**{len(gallery)} figure(s)** and **{sum(len(sec.tables) for sec in rep.sections)} table(s)** selected."]
-    if prisma is None:
-        md.append("PRISMA flow diagram: not included (optional; switch it on in the PRISMA section if you want it).")
-    elif not prisma_given(prisma):
-        md.insert(1, "> **PRISMA diagram is switched on but every box is empty**, so it is left out. Type in the PRISMA boxes and preview again.")
-    else:
-        md += [f"> **PRISMA check:** {x}" for x in prisma_checks(prisma)]
-    for sec in rep.sections:
-        md.append(f"\n**{sec.heading}**")
-        md += [f"\n{t}" for t in sec.text]
-        md += [f"- table: {n} ({len(df)} rows)" for n, df in sec.tables]
+    md = [preview_md(s, rep, prisma, len(gallery))]
     return gallery, "\n".join(md)
 
 
@@ -600,9 +638,11 @@ def build_app():
             with gr.Tab("1 · Upload & choose analysis"):
                 f = gr.File(label="Data file (.csv, .tsv, .xlsx, .xlsm)", file_types=[".csv", ".tsv", ".txt", ".xlsx", ".xlsm", ".xls"], type="filepath")
                 scan_btn = gr.Button("Read file and find possible analyses", variant="primary")
-                with gr.Accordion("Or resume a saved session (MetaPy saves your work automatically)", open=False):
+                if WEB_MODE:
+                    gr.Markdown(WEB_NOTICE)
+                with gr.Accordion("Or resume a saved session (MetaPy saves your work automatically)", open=False, visible=not WEB_MODE):
                     with gr.Row():
-                        saved_dd = gr.Dropdown(label="Saved sessions", choices=saved_sessions())
+                        saved_dd = gr.Dropdown(label="Saved sessions", choices=[] if WEB_MODE else saved_sessions())
                         refresh_btn = gr.Button("Refresh list")
                     resume_btn = gr.Button("Resume selected session")
                 overview = gr.Markdown()
@@ -779,7 +819,7 @@ def build_app():
             return s2, msg, ch, ch, plan_status(s2)
         approve_btn.click(on_approve_many, [state, approve_group, confirm], [state, approve_md, extras, more, status_df, analyse_group, approve_group])
         run_btn.click(on_analyse, [state, model, tau, ci, extras, analyse_group, confirm3], res_outputs)
-        refresh_btn.click(lambda: gr.update(choices=saved_sessions()), [], [saved_dd])
+        refresh_btn.click(lambda: gr.update(choices=[] if WEB_MODE else saved_sessions()), [], [saved_dd])
         resume_btn.click(on_resume, [saved_dd], [state, select_msg, plan_dd, approve_group, analyse_group, status_df])
         res_pick.change(on_show_result, [state, res_pick], res_outputs)
         nma_refresh.click(on_nma_sources, [state], [nma_src, nma_md])
@@ -792,8 +832,12 @@ def build_app():
 
 
 def launch(share: bool | None = None, **kw):
-    if share is None:
+    if WEB_MODE:          # hosted website: the host provides the public address
+        kw.setdefault("server_name", "0.0.0.0")
+        kw.setdefault("max_file_size", "25mb")
+        share = False
+    elif share is None:
         share = os.environ.get("METAPY_SHARE", "true").lower() not in ("0", "false", "no")
     app = build_app()
-    app.queue()
+    app.queue(default_concurrency_limit=4)
     return app.launch(share=share, **kw)

@@ -273,6 +273,37 @@ def check_prisma_free_text():
     assert not any("PubMed" in t or "Scopus" in t for t in texts)
 
 
+
+
+
+
+def check_web_mode_saves_nothing():
+    import importlib
+    import os
+    import tempfile
+    import fake_gradio
+    fake_gradio.install()
+    from test_metapy import _prepost_file
+    save_to = tempfile.mkdtemp()
+    old = {k: os.environ.get(k) for k in ("METAPY_WEB", "METAPY_SAVE_DIR")}
+    os.environ["METAPY_WEB"], os.environ["METAPY_SAVE_DIR"] = "1", save_to
+    try:
+        from metapy import app as A
+        A = importlib.reload(A)
+        assert A.WEB_MODE
+        path = os.path.join(tempfile.mkdtemp(), "web.xlsx")
+        _prepost_file(path)
+        s, *_ = A.on_scan(path, False)
+        s, _, dd = A.on_select(s, [s.scan_report.plans[0]["plan_id"]])
+        assert os.listdir(save_to) == []                      # nothing written to the server
+        assert A.on_resume(os.path.join(save_to, "x.metapy"))[0] is None
+        A.build_app()
+    finally:
+        for k, v in old.items():
+            os.environ.pop(k, None) if v is None else os.environ.__setitem__(k, v)
+        importlib.reload(A)
+
+
 class TestV5(unittest.TestCase):
     pass
 

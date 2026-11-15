@@ -44,6 +44,7 @@ class MetaPySession:
         self.withdrawn: list[str] = []      # outcomes whose approval was withdrawn because their data changed
         self.save_path: str | None = None
         self.nma_results: list[dict[str, Any]] = []     # network meta-analyses (cleared with every new file)
+        self.answered: set[str] = set()                   # plans whose questions the researcher has answered
         self.source_path: str | None = None
 
     # ---------------------------------------------------------- helpers
@@ -120,7 +121,28 @@ class MetaPySession:
         prep = self.preps.get(plan_id) or self.prepare(plan_id)
         self.settings[plan_id] = apply_answers(self.settings[plan_id], answers, self.plans[plan_id]["outcome"], prep.questions)
         self._log("answers", {"plan": plan_id, "answers": answers})
+        if not hasattr(self, "answered"):
+            self.answered = set()
+        self.answered.add(plan_id)
         return self.prepare(plan_id)
+
+    def default_answers(self, plan_id: str) -> dict[str, Any]:
+        """The answers pre-selected on screen for a plan's open questions (MetaPy's recommendations)."""
+        prep = self.preps.get(plan_id) or self.prepare(plan_id)
+        return {q["id"]: q.get("default") for q in prep.questions if "default" in q}
+
+    def apply_pending_answers(self, plan_ids: list[str]) -> list[str]:
+        """Apply the pre-selected answers to plans whose questions were never answered, so that what the
+        researcher saw on screen is what is used. Returns the plans that were updated."""
+        done = []
+        for pid in plan_ids:
+            if pid in getattr(self, "answered", set()):
+                continue
+            prep = self.preps.get(pid) or self.prepare(pid)
+            if prep.questions:
+                self.answer(pid, self.default_answers(pid))
+                done.append(pid)
+        return done
 
     def exclude(self, plan_id: str, record_ids: list[str]) -> PrepResult:
         self.settings[plan_id]["excluded_records"] = list(record_ids)
@@ -159,8 +181,11 @@ class MetaPySession:
                     a["label"] += "  [recommended: you imputed r]"
         return out
 
-    def approve_many(self, plan_ids: list[str]) -> tuple[list[str], list[str]]:
-        """Approve exactly the given plans (others become unapproved). Returns (approved, refused)."""
+    def approve_many(self, plan_ids: list[str], apply_pending: bool = True) -> tuple[list[str], list[str]]:
+        """Approve exactly the given plans (others become unapproved). Returns (approved, refused).
+        Plans whose questions were never answered get the pre-selected (recommended) answers first."""
+        if apply_pending:
+            self.last_auto_answered = self.apply_pending_answers([p for p in plan_ids if p in self.plans])
         ok, refused = [], []
         for pid in self.plans:
             want = pid in plan_ids
@@ -176,6 +201,8 @@ class MetaPySession:
         return ok, refused
 
     def approve(self, plan_id: str, approved: bool = True) -> None:
+        if approved:
+            self.apply_pending_answers([plan_id])
         self.approved[plan_id] = approved
         p = self.preps[plan_id]
         self._log("approve_preparation", {"plan": plan_id, "approved": approved, "counts": p.counts,

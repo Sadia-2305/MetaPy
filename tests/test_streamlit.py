@@ -29,15 +29,31 @@ class TestStreamlitSite(unittest.TestCase):
             self.assertEqual([p for k, p in st.LOG if k == "error"], [])
 
         go()
+        widgets = [p for k, p in st.LOG if k == "widget"]
+        self.assertFalse(any("Combine different scales" in str(w) for w in widgets))     # not shown before a file is chosen
         ss["uploader"] = _Up(str(ROOT / "examples" / "MetaPy_SYNTHETIC_demo.xlsx"))
+        go()
+        self.assertTrue(any("Combine different scales" in str(p) for k, p in st.LOG if k == "widget"))
         go("btn_read")
         K = lambda n: f"{n}__{ss['gen']}"
         s = ss["s"]
+        rec = sorted(p["plan_id"] for p in s.scan_report.plans if p["recommended"])
+        ticked = sorted(p["plan_id"] for p in s.scan_report.plans if ss.get(K(f"plan_cb::{p['plan_id']}")))
+        self.assertEqual(ticked, rec)                                                    # recommended plans pre-ticked
         go(K("btn_select"))
-        self.assertGreaterEqual(len(s.plans), 1)
+        self.assertEqual(sorted(s.plans), rec)
+        # a changed choice takes effect immediately (no 'Apply' button)
+        pid = ss[K("plan_dd")]
+        qs = s.preps[pid].questions
+        if qs:
+            q = next(q for q in qs if not q.get("multi"))
+            st.change(K(f"q::{pid}::{q['id']}::{len(q['options'])}"), 0)
+            self.assertIn(pid, s.answered)
+        go()
         ss[K("approve_group")], ss[K("approve_confirm")] = list(s.plans), True
         go(K("btn_approve"))
         self.assertTrue(all(s.approved.values()))
+        self.assertTrue(set(s.plans) <= s.answered)                                      # pre-selected answers applied on approval
         keys = [a["key"] for a in s.extra_choices()]
         ss[K(f"extras_{len(keys)}")] = [k for k in ("tau_ci", "multilevel") if k in keys]
         go(K("btn_run"))

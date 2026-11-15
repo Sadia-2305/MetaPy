@@ -368,15 +368,24 @@ def on_exclude(s, pid, included):
     return _prep_outputs(s, pid, f"{len(excluded)} comparison(s) excluded by you." if excluded else "All comparisons included.")
 
 
-def on_approve_many(s, ticked, confirmed):
-    """Approve exactly the ticked plans. Returns state, message, extras, more, status, analyse-group, approve-group."""
+def on_approve_many(s, ticked, confirmed, pid=None, *qvals):
+    """Approve exactly the ticked plans. Returns state, message, extras, more, status, analyse-group, approve-group.
+    Choices shown on screen for the current plan are applied first if the researcher did not click 'Apply'."""
     if s is None or not s.plans:
         return s, "Select plans in Step 1 first.", upd(), upd(), plan_status(s), upd(), upd()
+    if confirmed and pid in s.preps and pid not in getattr(s, "answered", set()) and qvals and s.preps[pid].questions:
+        ans = _decode_answers(s.preps[pid].questions, list(qvals))
+        if ans:
+            s.answer(pid, ans)
     if not confirmed:
         return (s, "Tick **I have reviewed ...** to confirm, then click again.", upd(), upd(), plan_status(s), upd(),
                 upd(choices=plan_choices_status(s), value=_approved_ids(s)))
     ok, refused = s.approve_many(list(ticked or []))
     msg = []
+    auto = getattr(s, "last_auto_answered", [])
+    if auto:
+        msg.append("The answers shown on screen (MetaPy's recommendations) were applied to " +
+                   ", ".join(f"**{s.plans[p]['outcome']}**" for p in auto) + " before approval.")
     if ok:
         msg.append("Approved: " + ", ".join(f"**{s.plans[p]['outcome']}**" for p in ok) + ".")
     if refused:
@@ -817,7 +826,7 @@ def build_app():
         def _approve(s, p, c):
             s2, msg, ch = on_approve(s, p, c)
             return s2, msg, ch, ch, plan_status(s2)
-        approve_btn.click(on_approve_many, [state, approve_group, confirm], [state, approve_md, extras, more, status_df, analyse_group, approve_group])
+        approve_btn.click(on_approve_many, [state, approve_group, confirm, plan_dd] + radios + checks, [state, approve_md, extras, more, status_df, analyse_group, approve_group])
         run_btn.click(on_analyse, [state, model, tau, ci, extras, analyse_group, confirm3], res_outputs)
         refresh_btn.click(lambda: gr.update(choices=[] if WEB_MODE else saved_sessions()), [], [saved_dd])
         resume_btn.click(on_resume, [saved_dd], [state, select_msg, plan_dd, approve_group, analyse_group, status_df])

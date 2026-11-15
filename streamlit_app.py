@@ -107,8 +107,10 @@ tabs = st.tabs(["1 · Upload & choose", "2 · Prepare data", "3 · Analyse & rev
 with tabs[0]:
     show_flash("1")
     up = st.file_uploader("Data file (.csv, .tsv, .xlsx, .xlsm)", type=["csv", "tsv", "txt", "xlsx", "xlsm", "xls"], key="uploader")
-    group = st.checkbox("Combine different scales of the same construct into one outcome "
-                        "(e.g. HAM-A, BAI, GAD-7 → Anxiety; hsCRP + CRP → CRP)", value=True, key="group_constructs")
+    group = True
+    if up is not None:
+        group = st.checkbox("Combine different scales of the same construct into one outcome "
+                            "(e.g. HAM-A, BAI, GAD-7 → Anxiety; hsCRP + CRP → CRP)", value=True, key="group_constructs")
     if st.button("Read file and find possible analyses", type="primary", key="btn_read", disabled=up is None):
         try:
             with st.spinner("Reading the file…"):
@@ -121,12 +123,25 @@ with tabs[0]:
 
     if s is not None and s.scan_report is not None:
         st.markdown(scan_overview_md(s))
-        show_all = st.checkbox("Show every possible effect measure (including cross-family conversions)", key=K("show_all"))
-        choices = s.plan_choices(show_all)
-        labels = dict((pid, lab) for lab, pid in choices)
-        rec = [p["plan_id"] for p in s.scan_report.plans if p["recommended"] and p["plan_id"] in labels]
-        picked = st.multiselect("Analysis plans (one effect measure per outcome)", list(labels), default=rec,
-                                format_func=lambda pid: labels[pid], key=K(f"plans_{int(show_all)}"))
+        by_id = {p["plan_id"]: p for p in s.scan_report.plans}
+        for p_ in s.scan_report.plans:                      # recommended plans start ticked
+            if K(f"plan_cb::{p_['plan_id']}") not in ss:
+                ss[K(f"plan_cb::{p_['plan_id']}")] = bool(p_["recommended"])
+        picked_now = [pid for pid in by_id if ss.get(K(f"plan_cb::{pid}"))]
+        with st.popover(f"Analysis plans: {len(picked_now)} selected (click to see all possible plans)", width="stretch"):
+            st.caption("Recommended plans are already ticked: for each outcome, the first uses the most studies with the fewest "
+                       "approximations. Tick one effect measure per outcome.")
+            show_all = st.checkbox("Show every possible effect measure (including cross-family conversions)", key=K("show_all"))
+            shown = [pid for _, pid in s.plan_choices(show_all)]
+            shown += [pid for pid in picked_now if pid not in shown]          # never hide a ticked plan
+            outcomes = list(dict.fromkeys(by_id[pid]["outcome"] for pid in shown))
+            for oc in outcomes:
+                st.markdown(f"**{oc}**")
+                for pid in [x for x in shown if by_id[x]["outcome"] == oc]:
+                    lab = by_id[pid]["summary"] + ("  ★ recommended" if by_id[pid]["recommended"] else "")
+                    st.checkbox(lab, key=K(f"plan_cb::{pid}"))
+        picked = [pid for pid in by_id if ss.get(K(f"plan_cb::{pid}"))]
+        st.markdown("**Selected:** " + ("; ".join(by_id[pid]["summary"] for pid in picked) if picked else "none"))
         if st.button("Use the selected plan(s)", type="primary", key=K("btn_select"), disabled=not picked):
             try:
                 with st.spinner("Preparing the data…"):
@@ -169,22 +184,30 @@ with tabs[1]:
 
         if p.questions:
             st.markdown("#### Your decisions")
-            answers = {}
+            st.caption("MetaPy's recommendation is pre-selected for each question. A change takes effect immediately and "
+                       "everything is recalculated; the pre-selected answers are applied when you approve the plan.")
+            qkey = lambda q: K(f"q::{pid}::{q['id']}::{len(q['options'])}")      # new key if the choices change
+
+            def _apply_on_screen(pid=pid):
+                ans = {}
+                for q in s.preps[pid].questions:
+                    v, opts = ss.get(qkey(q)), q["options"]
+                    if v is None:
+                        continue
+                    ans[q["id"]] = [opts[j][1] for j in v] if q.get("multi") else opts[v][1]
+                s.answer(pid, ans)
+                flash("2", "success", "Your choice was applied and everything was recalculated.")
+
             for q in p.questions:
                 opts = q["options"]
-                key = K(f"q::{pid}::{q['id']}::{len(opts)}")          # new key if the choices change
                 if q.get("multi"):
                     dflt = [j for j, (_, v) in enumerate(opts) if v in (q.get("default") or [])]
-                    sel = st.multiselect(q["question"], list(range(len(opts))), default=dflt, format_func=lambda j, o=opts: o[j][0], key=key)
-                    answers[q["id"]] = [opts[j][1] for j in sel]
+                    st.multiselect(q["question"], list(range(len(opts))), default=dflt, format_func=lambda j, o=opts: o[j][0],
+                                   key=qkey(q), on_change=_apply_on_screen)
                 else:
                     dflt = next((j for j, (_, v) in enumerate(opts) if v == q.get("default")), 0)
-                    j = st.radio(q["question"], list(range(len(opts))), index=dflt, format_func=lambda j, o=opts: o[j][0], key=key)
-                    answers[q["id"]] = opts[j][1]
-            if st.button("Apply my answers", type="primary", key=K(f"btn_ans::{pid}")):
-                s.answer(pid, answers)
-                flash("2", "success", "Your answers were applied and everything was recalculated.")
-                st.rerun()
+                    st.radio(q["question"], list(range(len(opts))), index=dflt, format_func=lambda j, o=opts: o[j][0],
+                             key=qkey(q), on_change=_apply_on_screen)
 
         g_df = _g_rows(s, pid)
         if not g_df.empty:
@@ -259,6 +282,10 @@ with tabs[1]:
             else:
                 ok, refused = s.approve_many(list(to_approve))
                 msg = []
+                auto = getattr(s, "last_auto_answered", [])
+                if auto:
+                    msg.append("MetaPy's pre-selected answers were applied to " + ", ".join(f"**{s.plans[x]['outcome']}**" for x in auto)
+                               + " before approval.")
                 if ok:
                     msg.append("Approved: " + ", ".join(f"**{s.plans[x]['outcome']}**" for x in ok) + ".")
                 if refused:

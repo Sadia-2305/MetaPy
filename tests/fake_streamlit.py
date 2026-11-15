@@ -57,6 +57,19 @@ def install():
     def file_uploader(label, type=None, key=None, **kw):
         return _val(key, None)
 
+    def change(key, value):
+        """Test helper: the user changes a widget; its on_change callback runs as in Streamlit."""
+        st.session_state[key] = value
+        cb = st.CALLBACKS.get(key)
+        if cb:
+            cb()
+    st.change = change
+    st.CALLBACKS = {}
+
+    def _reg(key, kw):
+        if key and kw.get("on_change"):
+            st.CALLBACKS[key] = kw["on_change"]
+
     def checkbox(label, value=False, key=None, **kw):
         v = _val(key, value)
         if key:
@@ -64,6 +77,7 @@ def install():
         return v
 
     def radio(label, options, index=0, format_func=str, key=None, **kw):
+        _reg(key, kw)
         opts = list(options)
         v = _val(key, opts[index] if index is not None and opts else None)
         assert v in opts, f"radio {label!r}: {v!r} not in options"
@@ -82,6 +96,7 @@ def install():
         return v
 
     def multiselect(label, options, default=None, format_func=str, key=None, **kw):
+        _reg(key, kw)
         opts = list(options)
         for d in default or []:
             assert d in opts, f"multiselect {label!r}: default {d!r} not in options"
@@ -124,6 +139,9 @@ def install():
     def expander(*a, **kw):
         return _CM()
 
+    def popover(*a, **kw):
+        return _CM()
+
     def spinner(*a, **kw):
         return _CM()
 
@@ -137,8 +155,16 @@ def install():
     def rerun():
         raise Rerun()
 
-    for f in (file_uploader, checkbox, radio, selectbox, multiselect, text_input, text_area, data_editor, button, download_button,
-              expander, spinner, tabs, columns, rerun):
+    def _logged(f):
+        def w(*a, **kw):
+            st.LOG.append(("widget", a[0] if a else kw.get("label")))
+            return f(*a, **kw)
+        w.__name__ = f.__name__
+        return w
+
+    for f in (file_uploader, checkbox, radio, selectbox, multiselect, text_input, text_area, data_editor, button, download_button):
+        setattr(st, f.__name__, _logged(f))
+    for f in (expander, popover, spinner, tabs, columns, rerun):
         setattr(st, f.__name__, f)
     cc = types.SimpleNamespace(SelectboxColumn=lambda *a, **kw: None)
     st.column_config = cc

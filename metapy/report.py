@@ -213,6 +213,11 @@ def methods_text(results: list[AnalysisResult]) -> list[str]:
     if extra:
         dp += " The following approximations or researcher-approved assumptions were used: " + "; ".join(extra) + "."
     flips = [r.prep.plan["outcome"] for r in results if r.studies.get("direction_flipped", pd.Series(dtype=bool)).any()]
+    kept = [r.prep.plan["outcome"] for r in results
+            if (r.prep.settings.get("higher_is_better") or {}).get(r.prep.plan["outcome"]) == "worse_keep"]
+    if kept:
+        dp += (f" For {', '.join(kept)}, higher scores indicate a worse state; the original signs were kept, so negative values "
+               "indicate a benefit of the intervention.")
     if flips:
         dp += (f" For outcomes where higher scores indicate a worse state ({', '.join(flips)}), signs were reversed so that positive "
                "effects favour the intervention.")

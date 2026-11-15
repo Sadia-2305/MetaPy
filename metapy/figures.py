@@ -29,7 +29,9 @@ def favours_labels(res) -> tuple[str, str]:
     if m.family == "continuous":
         if hib is None:
             return "Lower in intervention", "Higher in intervention"
-        return "Favours control", "Favours intervention"  # signs harmonised so positive = benefit
+        if hib == "worse_keep":                            # original signs kept: negative = benefit
+            return "Favours intervention", "Favours control"
+        return "Favours control", "Favours intervention"  # higher is better, or signs flipped so positive = benefit
     if m.family in ("binary", "time-to-event"):
         if hib is True:
             return "Favours control", "Favours intervention"

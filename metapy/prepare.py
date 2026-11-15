@@ -143,7 +143,7 @@ def prepare(ds: Dataset, plan: dict[str, Any], settings: dict[str, Any] | None =
     hib_map = dict(s.get("higher_is_better") or {})
     from .fields import known_direction
     d_known = known_direction(plan["outcome"])
-    chosen0 = hib_map.get(plan["outcome"], "unset")
+    chosen0 = _dir(hib_map.get(plan["outcome"], "unset"))
     if d_known is not None and chosen0 not in ("unset", d_known) and not (
             "outcome_direction" in recs and direction_from_text(recs["outcome_direction"].tolist()) is not None):
         what = "'leave signs as they are'" if chosen0 is None else ("higher is better" if chosen0 else "higher is worse")
@@ -153,7 +153,7 @@ def prepare(ds: Dataset, plan: dict[str, Any], settings: dict[str, Any] | None =
                         f"Direction check: for {plan['outcome']} higher values usually mean a better state, but the answer chosen was {what}.")
     if "outcome_direction" in recs:
         d_file = direction_from_text(recs["outcome_direction"].tolist())
-        chosen = hib_map.get(plan["outcome"], "unset")
+        chosen = _dir(hib_map.get(plan["outcome"], "unset"))
         if d_file is not None and chosen != "unset" and chosen != d_file:
             what = "'leave signs as they are'" if chosen is None else ("higher is better" if chosen else "higher is worse")
             warnings.append(f"Direction conflict: your data file says higher scores are {'better' if d_file else 'worse'} for this outcome, "
@@ -511,18 +511,27 @@ def _questions(ds, recs, data, sols, m, s, multi_rows, check_rows, plan) -> list
     from .fields import known_direction
     hb_set = s.get("higher_is_better") or {}
     cur = hb_set.get(plan["outcome"]) if plan["outcome"] in hb_set else known_direction(plan["outcome"])
+    if plan["outcome"] not in hb_set and cur is False and m.family == "continuous":
+        cur = "worse_keep"            # keep the published direction (negative = benefit); labels follow it
     from_file = (s.get("_direction_from_file") or {}).get(plan["outcome"])
     src_note = (" (pre-filled from your outcome-direction column)" if from_file else
-                " (pre-selected: higher values of this outcome usually mean a worse state; please confirm)" if plan["outcome"] not in hb_set and cur is False else
+                " (pre-selected: higher values of this outcome usually mean a worse state; please confirm)" if plan["outcome"] not in hb_set and _dir(cur) is False else
                 " (pre-selected: higher values usually mean a better state; please confirm)" if plan["outcome"] not in hb_set and cur is True else "")
     if m.family == "continuous":
         qs.append({"id": "higher_is_better", "question": f"For '{plan['outcome']}', are higher scores better or worse for participants?{src_note}",
-                   "options": [("Higher is better", True), ("Higher is worse (e.g. symptoms, inflammation); flip signs so positive = benefit", False),
+                   "options": [("Higher is better", True),
+                               ("Higher is worse (e.g. symptoms, inflammation); keep the original signs, so negative = benefit", "worse_keep"),
+                               ("Higher is worse; flip signs so positive = benefit", False),
                                ("Not applicable / leave signs as they are", None)], "default": cur, "multi": False})
     elif m.family in ("binary", "time-to-event"):
         qs.append({"id": "higher_is_better", "question": f"For '{plan['outcome']}', is the event desirable (e.g. remission) or harmful (e.g. death)? (Used for plot labels.){src_note}",
                    "options": [("Desirable event", True), ("Harmful event", False), ("Not applicable", None)], "default": cur, "multi": False})
     return qs
+
+
+def _dir(v):
+    """Direction of an answer: True (higher is better), False (higher is worse, whether or not signs are flipped), None."""
+    return False if v == "worse_keep" else v
 
 
 def apply_answers(settings: dict[str, Any], answers: dict[str, Any], outcome: str,

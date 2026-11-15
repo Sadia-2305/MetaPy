@@ -304,6 +304,40 @@ def check_web_mode_saves_nothing():
         importlib.reload(A)
 
 
+
+
+
+
+def check_direction_keep_signs_default():
+    """Outcomes where higher is worse: by default the original signs are kept (negative = benefit) and the plot
+    labels follow that; flipping is still available as an explicit answer."""
+    from metapy import MetaPySession
+    from metapy.figures import favours_labels
+    import tempfile
+    rows = [(1, 10.1, 4.0, 30, 12.0, 4.2, 31), (2, 15.2, 5.1, 25, 17.9, 5.0, 24), (3, 8.4, 3.0, 40, 9.0, 3.3, 41),
+            (4, 20.5, 6.2, 22, 23.1, 6.0, 20)]
+    path = Path(tempfile.mkdtemp()) / "anxiety.csv"
+    pd.DataFrame(rows, columns=["StudyID", "Mean_Post_I", "SD_Post_I", "N_I", "Mean_Post_C", "SD_Post_C", "N_C"]).assign(
+        Outcome="Anxiety (HADS-A)").to_csv(path, index=False)
+    s = MetaPySession()
+    s.load(str(path))
+    pid = next(p["plan_id"] for p in s.scan_report.plans if p["recommended"])
+    s.select_plans([pid])
+    q = next(q for q in s.prepare(pid).questions if q["id"] == "higher_is_better")
+    assert q["default"] == "worse_keep"
+    s.approve_many([pid])
+    r = s.analyse({"model": "random", "tau_method": "REML", "ci_method": "HK", "extras": []})[pid]
+    assert not r.studies["direction_flipped"].any()
+    assert favours_labels(r) == ("Favours intervention", "Favours control")
+    assert not any("Direction" in w for w in s.preps[pid].warnings)
+    est_kept = r.main["estimate"]
+    s.answer(pid, {"higher_is_better": False})                    # explicit choice: flip signs
+    s.approve_many([pid])
+    r2 = s.analyse({"model": "random", "tau_method": "REML", "ci_method": "HK", "extras": []})[pid]
+    assert abs(r2.main["estimate"] + est_kept) < 1e-9
+    assert favours_labels(r2) == ("Favours control", "Favours intervention")
+
+
 class TestV5(unittest.TestCase):
     pass
 

@@ -321,9 +321,11 @@ HIGHER_IS_BETTER = {"Quality of life", "BDNF"}
 
 
 def known_direction(outcome: str) -> bool | None:
-    """True = higher is better, False = higher is worse, None = unknown."""
-    if outcome in HIGHER_IS_WORSE:
-        return False
-    if outcome in HIGHER_IS_BETTER:
-        return True
+    """True = higher is better, False = higher is worse, None = unknown. 'Anxiety (HADS-A)' is read as 'Anxiety'."""
+    import re
+    for name in (outcome, re.sub(r"\s*\(.*\)\s*$", "", str(outcome)).strip()):
+        if name in HIGHER_IS_WORSE:
+            return False
+        if name in HIGHER_IS_BETTER:
+            return True
     return None

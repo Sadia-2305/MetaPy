@@ -76,6 +76,9 @@ class TestStreamlitSite(unittest.TestCase):
         st.LOG.clear()
         go()
         self.assertNotIn(("dialog", "How was MetaPy?"), st.LOG)                   # asked only once
+        go("btn_example")                                     # one-click example data
+        self.assertTrue(ss["s"].ds.source_name.startswith("MetaPy_example_tutoring"))
+        s = ss["s"]
         old, old_gen = s, ss["gen"]
         go("btn_read")                                        # reading a file again starts a brand-new session
         self.assertIsNot(ss["s"], old)

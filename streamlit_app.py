@@ -203,6 +203,21 @@ with tabs[0]:
                 "[Cochrane Handbook](https://training.cochrane.org/handbook) and report with [PRISMA 2020](https://www.prisma-statement.org). "
                 "For complex questions, ask a statistician.")
     up = st.file_uploader("Data file (.csv, .tsv, .xlsx, .xlsm)", type=["csv", "tsv", "txt", "xlsx", "xlsm", "xls"], key="uploader")
+    EXAMPLE = Path(__file__).resolve().parent / "examples" / "MetaPy_example_tutoring.xlsx"
+    if EXAMPLE.exists() and st.button("Try MetaPy with example data", key="btn_example",
+                                      help="Loads an invented dataset (tutoring programmes for school pupils: maths scores and "
+                                           "school dropout) so you can explore every step without your own file."):
+        if ss.tmpdir:
+            shutil.rmtree(ss.tmpdir, ignore_errors=True)
+        ss.tmpdir = tempfile.mkdtemp(prefix="metapy_upload_")
+        path = Path(ss.tmpdir) / EXAMPLE.name
+        path.write_bytes(EXAMPLE.read_bytes())
+        ss.src_path, ss.groups, ss.group_cb = str(path), [], True
+        with st.spinner("Reading the example file…"):
+            ok = read_file(str(path), True)
+        if ok:
+            flash("1", "success", "Example data loaded (invented studies, for practice only). Continue below.")
+        st.rerun()
     if st.button("Read file and find possible analyses", type="primary", key="btn_read", disabled=up is None):
         with st.spinner("Reading the file…"):
             ok = new_file(up)

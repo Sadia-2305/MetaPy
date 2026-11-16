@@ -14,9 +14,11 @@ import urllib.request
 from . import __version__
 
 # Google Form "formResponse" address and the entry ids of its questions (not secret; filled in by the developer)
-FORM = {"action": "", "rating": "", "comment": "", "role": "", "version": ""}
+FORM = {"action": "https://docs.google.com/forms/d/e/1FAIpQLSc2KrjoYrY5Fha60YiRvJXzWVlutPeo83317Amkd7orCNc4VA/formResponse",
+        "rating": "entry.390804516", "comment": "entry.829629288", "role": "entry.1196410390", "version": ""}
 
-ROLES = ["Prefer not to say", "Student", "Researcher / academic", "Clinician / practitioner", "Statistician / methodologist", "Other"]
+# must match the choices of the "Role" question in the Google Form exactly (the first item is never sent)
+ROLES = ["Prefer not to say", "Student", "Researcher / academic", "Clinician / practitioner", "Statistician / methodologist", "Others"]
 
 
 def config() -> dict:

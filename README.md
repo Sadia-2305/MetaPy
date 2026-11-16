@@ -1,4 +1,4 @@
-# MetaPy 5.0: intelligent, transparent meta-analysis
+# MetaPy 5.2: transparent meta-analysis for every researcher
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.24267388.svg)](https://doi.org/10.5281/zenodo.24267388)
 

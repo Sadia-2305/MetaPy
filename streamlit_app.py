@@ -345,7 +345,7 @@ with tabs[2]:
         with c1:
             model = st.radio("Model", ["Random effects", "Fixed effect"], key=K("model"))
         with c2:
-            tau = st.radio("τ² estimator", ["REML (recommended)", "DL (DerSimonian-Laird)", "PM (Paule-Mandel)"], key=K("tau"))
+            tau = st.radio("τ² estimator", ["REML (recommended)", "DL (DerSimonian-Laird)", "PM (Paule-Mandel)", "ML (maximum likelihood)", "EB (empirical Bayes)", "SJ (Sidik-Jonkman)", "HE (Hedges)", "HS (Hunter-Schmidt)", "HSk (Hunter-Schmidt, small-sample)"], key=K("tau"))
         with c3:
             ci = st.radio("Confidence interval", ["Hartung-Knapp (recommended)", "Wald (normal)"], key=K("ci"))
         opts = {"model": "random" if model.startswith("Random") else "fixed", "tau_method": tau.split()[0],

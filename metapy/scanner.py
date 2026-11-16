@@ -259,6 +259,13 @@ def extra_analyses_for(chars: pd.DataFrame, overview: dict[str, Any], records: p
         {"key": "baujat", "label": "Baujat plot (contribution to heterogeneity vs influence)", "needs": "3+ studies"},
         {"key": "multilevel", "label": "Three-level model for several effects per study", "needs": "studies with several effects"},
         {"key": "che_rve", "label": "CHE model with robust variance estimation (CR2, small-sample corrected)", "needs": "4+ studies"},
+        {"key": "tau2_compare", "label": "Heterogeneity under every τ² estimator (sensitivity)", "needs": "3+ studies"},
+        {"key": "influence_full", "label": "Full influence diagnostics (DFFITS, Cook's D, covariance ratio, hat values)", "needs": "3+ studies"},
+        {"key": "selection_multi", "label": "Step-function selection model with several cut-points (p = .025, .05, .5)", "needs": "30+ studies recommended"},
+        {"key": "tes", "label": "Test of excess significance", "needs": "5+ studies"},
+        {"key": "mh", "label": "Mantel-Haenszel common-effect estimate (binary outcomes)", "needs": "binary outcome with event counts"},
+        {"key": "peto", "label": "Peto odds ratio (rare events, balanced groups)", "needs": "odds ratio with event counts"},
+        {"key": "glmm", "label": "Generalized linear mixed model (exact binomial likelihood; rare events)", "needs": "odds ratio or proportion with counts"},
     ]
     for _, c in chars.iterrows():
         if records is not None and not usable_moderator(records, c["characteristic"], c["type"]):
@@ -269,6 +276,19 @@ def extra_analyses_for(chars: pd.DataFrame, overview: dict[str, Any], records: p
                                                           or (c["type"] == "categorical" and records["study_id"].nunique() >= 6)):
             out.append({"key": f"metareg::{c['characteristic']}", "label": f"Meta-regression on {c['characteristic']}", "needs": "10+ studies recommended"})
     mods = [o_["key"].split("::", 1)[1] for o_ in out if o_["key"].startswith("metareg::")]
+    if mods:
+        out.append({"key": "metareg_adv::" + "|".join(mods[:2]), "label": f"Meta-regression on {' × '.join(mods[:2])}"
+                    + (" with interaction" if len(mods) >= 2 else "") + ", predictions and robust (CR2) inference", "needs": "10+ studies"})
+        out.append({"key": f"location_scale::{mods[0]}", "label": f"Location-scale model: does heterogeneity depend on {mods[0]}?",
+                    "needs": "10+ studies"})
+    for _, c in chars.iterrows():
+        if c["type"] == "categorical" and records is not None:
+            col = f"char::{c['characteristic']}" if f"char::{c['characteristic']}" in records else c["characteristic"]
+            if col in records:
+                g = records[[col, "study_id"]].dropna()
+                if len(g) and g.groupby("study_id")[col].nunique().max() == 1 and g[col].nunique() >= 3 and g[col].nunique() < g["study_id"].nunique():
+                    out.append({"key": f"multilevel_nested::{c['characteristic']}", "label": f"Multilevel model: studies nested in {c['characteristic']}",
+                                "needs": "3+ groups"})
     if len(mods) >= 2:
         out.append({"key": "metareg_multi::" + "|".join(mods[:3]), "label": f"Multiple meta-regression ({', '.join(mods[:3])}) with permutation test",
                     "needs": "10+ studies per moderator recommended"})

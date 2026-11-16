@@ -69,6 +69,9 @@ def tau2_pm(y, v):
 
 def estimate_tau2(y, v, method="REML", X=None):
     m = method.upper()
+    if m in ("ML", "EB", "HE", "HS", "HSK", "SJ") or (m == "PM" and X is not None):
+        from . import extended
+        return extended.estimate_tau2(np.asarray(y, float), np.asarray(v, float), "HSk" if m == "HSK" else m, X)
     if m == "DL":
         if X is None:
             return tau2_dl(y, v)

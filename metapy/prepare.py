@@ -290,6 +290,10 @@ def prepare(ds: Dataset, plan: dict[str, Any], settings: dict[str, Any] | None =
                "yi": None if y is None else y * flip, "vi": v, "direction_flipped": flip < 0,
                "Effect-size design": design if (y is not None and v is not None) else None,
                "reported g used as": DESIGN_LABEL.get((s.get("g_types") or {}).get(rid)) if "g_reported" in src else None}
+        if m.family == "binary":           # counts kept for Mantel-Haenszel, Peto, GLMM and L'Abbe plots
+            row.update({"events_i": sol.get("events_i"), "events_c": sol.get("events_c")})
+        elif m.family == "proportion":
+            row.update({"events": sol.get("events")})
         for c in ds.characteristics:
             row[c] = r.get(f"char::{c}")
         basis = "—"

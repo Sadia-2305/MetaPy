@@ -705,7 +705,7 @@ def build_app():
             with gr.Tab("3 · Analyse & review"):
                 with gr.Row():
                     model = gr.Radio(["Random effects", "Fixed effect"], value="Random effects", label="Model")
-                    tau = gr.Radio(["REML (recommended)", "DL (DerSimonian-Laird)", "PM (Paule-Mandel)"], value="REML (recommended)", label="τ² estimator")
+                    tau = gr.Radio(["REML (recommended)", "DL (DerSimonian-Laird)", "PM (Paule-Mandel)", "ML (maximum likelihood)", "EB (empirical Bayes)", "SJ (Sidik-Jonkman)", "HE (Hedges)", "HS (Hunter-Schmidt)", "HSk (Hunter-Schmidt, small-sample)"], value="REML (recommended)", label="τ² estimator")
                     ci = gr.Radio(["Hartung-Knapp (recommended)", "Wald (normal)"], value="Hartung-Knapp (recommended)", label="Confidence interval")
                 analyse_group = gr.CheckboxGroup(label="Plans to analyse (all approved plans are ticked)", choices=[])
                 confirm3 = gr.Checkbox(label="I approve the preparation of the ticked plans that are not yet approved", value=False)

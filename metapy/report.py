@@ -35,6 +35,7 @@ FIGURE_CHOICES = {
     "provenance": "Data-provenance chart (how each effect was obtained)", "prisma": "PRISMA 2020 flow diagram",
     "baujat": "Baujat plot (needs the Baujat analysis)", "rho": "CHE-RVE sensitivity to ρ (needs the CHE-RVE analysis)",
     "network": "Network graph and forest plot (network meta-analysis)",
+    "radial": "Radial (Galbraith) plot", "labbe": "L'Abbé plot (binary outcomes with event counts)",
 }
 TEXT_CHOICES = {"methods": "Auto-written methods paragraph (with citations)", "results": "Auto-written results paragraph"}
 
@@ -129,14 +130,18 @@ def extra_tables(res: AnalysisResult) -> list[tuple[str, pd.DataFrame]]:
             out.append((name + (" — " + val["warning"] if val.get("warning") else ""), t))
         elif "table" in val and isinstance(val["table"], pd.DataFrame):
             t = val["table"].copy()
-            if m.back and not key.startswith(("tau_ci", "baujat")):
+            if m.back and not key.startswith(("tau_ci", "baujat", "metareg_adv", "location_scale", "multilevel_nested", "influence_full", "tes")):
                 for c in ("estimate", "ci_lo", "ci_hi"):
                     if c in t:
                         t[c] = t[c].map(lambda x: m.transform(x) if pd.notna(x) else x)
             title = name + (f" — {val['warning']}" if val.get("warning") else "") + (f" — {val['status']}" if str(val.get("status", "")).startswith("Performed (") else "")
             out.append((title, t))
             for sub, lab in (("variance_table", "variance components"), ("level_tests", "likelihood-ratio tests for each level"),
-                             ("rho_sensitivity", "sensitivity to the assumed within-study correlation"), ("table2", "heterogeneity and priors")):
+                             ("rho_sensitivity", "sensitivity to the assumed within-study correlation"),
+                             ("table2", "heterogeneity and priors" if key == "bayes" else ("estimated selection weights" if key == "selection_multi" else "tests of moderators")),
+                             ("table3", "predicted effects (with 95% confidence and prediction intervals)"),
+                             ("robust_table", "cluster-robust (CR2) inference, clustered by study"),
+                             ("scale_table", "scale part: moderators of log τ²")):
                 if isinstance(val.get(sub), pd.DataFrame):
                     st = val[sub].copy()
                     if m.back and sub == "rho_sensitivity":
@@ -173,7 +178,10 @@ def methods_text(results: list[AnalysisResult]) -> list[str]:
     per = "; ".join(f"{r.prep.plan['outcome']}: {r.measure.label}" for r in results)
     p = (f"Meta-analyses were conducted in MetaPy {__version__} (Python). Effect measures by outcome: {per}. ")
     if o["model"] == "random":
-        tau = {"REML": "restricted maximum likelihood (REML)", "DL": "the DerSimonian-Laird method", "PM": "the Paule-Mandel method"}[o["tau_method"]]
+        tau = {"REML": "restricted maximum likelihood (REML)", "DL": "the DerSimonian-Laird method", "PM": "the Paule-Mandel method",
+               "ML": "maximum likelihood", "EB": "the empirical Bayes method (Morris 1983)", "HE": "the Hedges method",
+               "HS": "the Hunter-Schmidt method", "HSk": "the Hunter-Schmidt method with small-sample correction",
+               "SJ": "the Sidik-Jonkman method"}.get(o["tau_method"], o["tau_method"])
         p += f"A random-effects model was used, with between-study variance (τ²) estimated by {tau}"
         p += (" and confidence intervals computed with the Hartung-Knapp-Sidik-Jonkman adjustment (modified so it is never narrower than the Wald interval)."
               if o["ci_method"] == "HK" else " and Wald-type confidence intervals.")
@@ -279,6 +287,32 @@ def methods_text(results: list[AnalysisResult]) -> list[str]:
                   "sensitivity analysis) with cluster-robust CR2 standard errors and Satterthwaite degrees of freedom (Pustejovsky & Tipton 2022)")
     if "metareg_multi" in ex:
         sp.append("multiple meta-regression with permutation-based p-values (1,000 permutations; Higgins & Thompson 2004)")
+    if "tau2_compare" in ex:
+        sp.append("a sensitivity analysis of the pooled estimate across nine τ² estimators (Viechtbauer 2005; Veroniki et al. 2016)")
+    if "influence_full" in ex:
+        sp.append("case diagnostics including externally standardized residuals, DFFITS, Cook's distances, covariance ratios, leave-one-out τ² "
+                  "and hat values (Viechtbauer & Cheung 2010)")
+    if "mh" in ex:
+        sp.append("a Mantel-Haenszel common-effect analysis of the 2×2 tables (Mantel & Haenszel 1959; variances of Robins, Breslow & Greenland "
+                  "1986, Greenland & Robins 1985 and Sato, Greenland & Robins 1989)")
+    if "peto" in ex:
+        sp.append("Peto's one-step odds ratio (Yusuf et al. 1985)")
+    if "glmm" in ex:
+        sp.append("a generalized linear mixed model with the exact binomial likelihood (fixed study effects and a random treatment effect for "
+                  "odds ratios, or the binomial-normal model for proportions), fitted by maximum likelihood with adaptive Gauss-Hermite "
+                  "quadrature (Stijnen et al. 2010)")
+    if "selection_multi" in ex:
+        sp.append("a step-function selection model with cut-points at one-sided p = .025, .05 and .5 (Vevea & Hedges 1995; Vevea & Woods 2005)")
+    if "tes" in ex:
+        sp.append("the test of excess significance (Ioannidis & Trikalinos 2007)")
+    if "metareg_adv" in ex:
+        sp.append("meta-regression including an interaction term, with tests of linear hypotheses, predicted effects with prediction intervals, "
+                  "and cluster-robust CR2 standard errors with Satterthwaite degrees of freedom (Tipton 2015; Pustejovsky & Tipton 2018)")
+    if "location_scale" in ex:
+        sp.append("a location-scale model in which log τ² depends on moderators, with a likelihood-ratio test (Viechtbauer & López-López 2022)")
+    if "multilevel_nested" in ex:
+        sp.append("a multilevel model with an additional nesting level above studies (REML; Konstantopoulos 2011), with likelihood-ratio tests "
+                  "of each variance component")
     if sp:
         paras.append("Additional analyses included " + "; ".join(sp) + ". Tests for funnel-plot asymmetry were interpreted cautiously when fewer than 10 studies were available.")
     paras.append("Reporting follows the PRISMA 2020 statement (Page et al. 2021).")
@@ -400,6 +434,12 @@ def build_report(results: list[AnalysisResult], ds: Dataset, tables: list[str], 
             s.figures.append(("Cumulative meta-analysis", F.sensitivity_forest(r, t.assign(lbl=[f"+ {a}" for a in t["added"]]), "lbl", f"Cumulative meta-analysis: {out}", theme)))
         if "provenance" in figures:
             s.figures.append(("Data provenance", F.provenance_chart(r.prep, theme)))
+        if "radial" in figures and len(r.studies) >= 3:
+            s.figures.append(("Radial (Galbraith) plot", F.radial_plot(r, theme)))
+        if "labbe" in figures and r.measure.family == "binary":
+            fig = F.labbe_plot(r, theme)
+            if fig is not None:
+                s.figures.append(("L'Abbé plot", fig))
         if "baujat" in figures and "table" in r.extras.get("baujat", {}):
             s.figures.append(("Baujat plot", F.baujat_plot(r, theme)))
         if "rho" in figures and "rho_sensitivity" in r.extras.get("che_rve", {}):

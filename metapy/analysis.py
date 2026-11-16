@@ -14,6 +14,10 @@ from .measures import Measure
 from .prepare import PrepResult, prepare
 from . import advanced as AD
 from . import dependent as D
+from . import extended as EXT
+from . import metareg as MR
+from . import glmm as GL
+from . import advmodels as AM
 
 DEFAULT_OPTIONS = {"model": "random", "tau_method": "REML", "ci_method": "HK", "extras": []}
 
@@ -28,6 +32,11 @@ EXTRA_LABELS = {
     "failsafe": "Fail-safe N", "baujat": "Baujat diagnostics", "bayes": "Bayesian random-effects model",
     "multilevel": "Three-level model (effects nested in studies)", "che_rve": "CHE working model with robust variance estimation (CR2)",
     "metareg_multi": "Multiple meta-regression with permutation test",
+    "tau2_compare": "Heterogeneity: estimate under every τ² estimator", "mh": "Mantel-Haenszel common-effect estimate",
+    "peto": "Peto odds ratio", "glmm": "Generalized linear mixed model (exact binomial likelihood)",
+    "selection_multi": "Step-function selection model with several cut-points", "influence_full": "Influence diagnostics (full set)",
+    "tes": "Test of excess significance", "metareg_adv": "Meta-regression with interaction, predictions and robust (CR2) inference",
+    "location_scale": "Location-scale model (moderators of heterogeneity)", "multilevel_nested": "Multilevel model with an extra nesting level",
 }
 
 
@@ -347,5 +356,206 @@ def _x_metareg_multi(res, key):
     return r
 
 
+# ------------------------------------------------------------------ v5.1 methods (extended.py, metareg.py, glmm.py, advmodels.py)
+def _counts(d, prop=False):
+    num = lambda c: pd.to_numeric(d[c], errors="coerce") if c in d else pd.Series(np.nan, index=d.index)
+    if prop:
+        for e_, n_ in (("events", "n_total"), ("events_i", "n_i")):
+            x, n = num(e_), num(n_)
+            if x.notna().all() and n.notna().all():
+                return x.to_numpy(float), n.to_numpy(float)
+        return None
+    cols = [num(c) for c in ("events_i", "n_i", "events_c", "n_c")]
+    if all(c.notna().all() for c in cols):
+        return [c.to_numpy(float) for c in cols]
+    return None
+
+
+def _x_tau2_compare(res, key):
+    d = res.studies
+    if len(d) < 3:
+        return {"status": "Needs 3+ studies"}
+    t = EXT.compare_tau2(d["yi"].to_numpy(float), d["vi"].to_numpy(float))
+    return {"table": t[["estimator", "tau2", "I2", "estimate", "ci_lo", "ci_hi"]], "status": "Performed",
+            "note": "Wald-type intervals; the main analysis uses the estimator chosen in the analysis settings."}
+
+
+def _binary_measure(res):
+    return {"log_or": "OR", "log_rr": "RR", "rd": "RD"}.get(res.measure.key)
+
+
+def _x_mh(res, key):
+    meas = _binary_measure(res)
+    if meas is None:
+        return {"status": "Not applicable: Mantel-Haenszel needs a binary outcome (OR, RR or RD)"}
+    c = _counts(res.studies)
+    if c is None:
+        return {"status": "Needs event counts and group sizes for every study"}
+    a, n1, cc, n2 = c
+    r = EXT.mantel_haenszel(a, n1 - a, cc, n2 - cc, meas)
+    if r.get("status") != "Pooled":
+        return r
+    t = pd.DataFrame([{"method": r["method"], "k": r["k"], "estimate": r["estimate"], "ci_lo": r["ci_lo"], "ci_hi": r["ci_hi"],
+                       "p": r["p"], "Q": r["QE"], "I2": r["I2"]}])
+    return {**r, "table": t}
+
+
+def _x_peto(res, key):
+    if res.measure.key != "log_or":
+        return {"status": "Not applicable: Peto's method gives odds ratios"}
+    c = _counts(res.studies)
+    if c is None:
+        return {"status": "Needs event counts and group sizes for every study"}
+    a, n1, cc, n2 = c
+    r = EXT.peto(a, n1 - a, cc, n2 - cc)
+    if r.get("status") != "Pooled":
+        return r
+    t = pd.DataFrame([{"method": r["method"], "k": r["k"], "estimate": r["estimate"], "ci_lo": r["ci_lo"], "ci_hi": r["ci_hi"],
+                       "p": r["p"], "Q": r["QE"], "I2": r["I2"]}])
+    note = "Peto's method can be biased when effects are large or groups are unbalanced (Cochrane Handbook 10.4.4.2)."
+    return {**r, "table": t, "note": note}
+
+
+def _x_glmm(res, key):
+    d = res.studies
+    if res.measure.key == "log_or":
+        c = _counts(d)
+        if c is None:
+            return {"status": "Needs event counts and group sizes for every study"}
+        r = GL.logistic_fixed_study(*c)
+    elif res.measure.key == "logit_prop":
+        c = _counts(d, prop=True)
+        if c is None:
+            return {"status": "Needs event counts and sample sizes for every study"}
+        r = GL.binomial_normal(*c)
+    else:
+        return {"status": "Not applicable: available for odds ratios and single proportions"}
+    if r.get("status") != "Pooled":
+        return r
+    t = pd.DataFrame([{"model": r["method"], "k": r["k"], "estimate": r["estimate"], "ci_lo": r["ci_lo"], "ci_hi": r["ci_hi"],
+                       "p": r["p"], "tau2": r["tau2"], "LRT for tau² = 0": r["LRT_tau2"], "p (LRT)": r["p_tau2"]}])
+    return {**{k_: v_ for k_, v_ in r.items() if not isinstance(v_, (list, np.ndarray))}, "table": t, "status": "Performed"}
+
+
+def _x_selection_multi(res, key):
+    d = res.studies
+    steps = res.options.get("selection_steps", [0.025, 0.05, 0.5])
+    y, v = d["yi"].to_numpy(float), d["vi"].to_numpy(float)
+    alt = "greater" if np.average(y, weights=1 / v) >= 0 else "less"
+    r = EXT.selection_stepfun(y, v, steps, alternative=alt)
+    if "adjusted_estimate" not in r:
+        return {"status": r["status"], "counts": r.get("counts")}
+    lab = ["p ≤ " + str(r["steps"][0])] + [f"{lo} < p ≤ {hi}" for lo, hi in zip(r["steps"][:-1], r["steps"][1:])]
+    w = pd.DataFrame({"one-sided p interval": lab, "studies": r["counts"], "selection weight": r["delta"], "se": r["se_delta"]})
+    t = pd.DataFrame([{"model": f"Step-function selection model ({len(r['steps']) - 1} cut-points)", "estimate": r["adjusted_estimate"],
+                       "ci_lo": r["ci_lo0"], "ci_hi": r["ci_hi0"], "tau2": r["tau2"],
+                       "note": f"LRT of no selection = {r['LRT']:.2f} (df = {r['LRT_df']}), p = {r['p_selection']:.3f}"}])
+    return {**{k_: v_ for k_, v_ in r.items() if k_ not in ("beta", "se_beta", "ci_lo", "ci_hi")}, "table": t, "table2": w}
+
+
+def _x_influence_full(res, key):
+    d = res.studies
+    if len(d) < 3:
+        return {"status": "Needs 3+ studies"}
+    lab = list(d["label"] if "label" in d else d["study_id"])
+    t = EXT.influence_full(d["yi"].to_numpy(float), d["vi"].to_numpy(float), lab,
+                           res.options["tau_method"] if res.options["model"] == "random" else "REML")
+    return {"table": t, "status": "Performed", "note": "Cut-offs as in metafor (Viechtbauer & Cheung 2010)."}
+
+
+def _x_tes(res, key):
+    d = res.studies
+    if len(d) < 5:
+        return {"status": "Needs 5+ studies"}
+    r = EXT.tes(d["yi"].to_numpy(float), d["vi"].to_numpy(float))
+    t = pd.DataFrame([{"observed significant (O)": r["O"], "expected significant (E)": r["E"], "O/E": r["OE_ratio"],
+                       "statistic": r.get("statistic"), "p (O > E)": r["p"]}])
+    return {k_: v_ for k_, v_ in r.items() if k_ != "power"} | {"table": t, "status": "Performed"}
+
+
+def _moderators_from_key(res, key):
+    cols = key.split("::", 1)[1].split("|") if "::" in key else res.options.get("metareg_vars", [])
+    return [c for c in cols if c in res.studies]
+
+
+def _x_metareg_adv(res, key):
+    d = res.studies
+    cols = _moderators_from_key(res, key)
+    if not cols:
+        return {"status": "No moderators selected"}
+    terms = [cols[0] + "*" + cols[1]] if len(cols) >= 2 else cols
+    dd = d.dropna(subset=cols).reset_index(drop=True)
+    o = res.options
+    try:
+        f = MR.fit_df(dd, terms, tau_method=o["tau_method"], test="knha" if o["ci_method"] == "HK" else "z")
+    except ValueError as exc:
+        return {"status": str(exc)}
+    if f.k < 10:
+        return {"status": f"Not run: only {f.k} studies with complete moderator data (at least 10 needed)"}
+    t = f.table()
+    om = MR.omnibus(f)
+    tests = [{"hypothesis": "All moderators = 0", "test": om["test"], "statistic": om["statistic"], "p": om["p"]}]
+    for c in cols[:2]:
+        tt = MR.test_terms(f, c)
+        tests.append({"hypothesis": f"All terms involving {c} = 0", "test": tt["test"], "statistic": tt["statistic"], "p": tt["p"]})
+    # predictions: numeric moderators at their quartiles (others at their first level), categorical at every level
+    grid = []
+    base = {}
+    for c in cols[:2]:
+        num = pd.to_numeric(dd[c], errors="coerce")
+        base[c] = float(num.median()) if num.notna().all() else str(sorted(dd[c].astype(str).unique())[0])
+    first = cols[0]
+    num = pd.to_numeric(dd[first], errors="coerce")
+    vals = [float(q) for q in num.quantile([0.25, 0.5, 0.75])] if num.notna().all() else sorted(dd[first].astype(str).unique())
+    for vv in vals:
+        grid.append({**base, first: vv})
+    pr = MR.predict(f, grid)
+    rob = MR.robust(f, dd["study_id"]) if dd["study_id"].nunique() >= 4 else None
+    return {"table": t.rename(columns={"statistic": "z / t"}), "table2": pd.DataFrame(tests), "table3": pr,
+            "robust_table": rob, "tau2_residual": f.tau2, "R2_percent": MR.r2(f), "k": f.k, "terms": terms, "status": "Estimated"}
+
+
+def _x_location_scale(res, key):
+    d = res.studies
+    cols = _moderators_from_key(res, key)
+    if not cols:
+        return {"status": "No moderator selected"}
+    dd = d.dropna(subset=cols).reset_index(drop=True)
+    if len(dd) < 10:
+        return {"status": f"Not run: only {len(dd)} studies (at least 10 needed)"}
+    Z, zn, _ = MR.design(dd, cols)
+    r = AM.location_scale(dd["yi"], dd["vi"], np.ones((len(dd), 1)), Z, ["Intercept"], zn, "REML")
+    if r.get("status") != "Estimated":
+        return r
+    sc = r["scale"].copy()
+    sc.insert(1, "model part", "log τ²")
+    return {"table": r["location"], "scale_table": sc, "LRT_scale": r["LRT_scale"], "p_scale": r["p_scale"], "k": r["k"],
+            "status": "Estimated", "note": f"LRT that heterogeneity depends on the moderator(s): {r['LRT_scale']:.2f}, p = {r['p_scale']:.3f}"}
+
+
+def _x_multilevel_nested(res, key):
+    d = res.studies.copy()
+    outer = key.split("::", 1)[1] if "::" in key else None
+    if not outer or outer not in d:
+        return {"status": "No grouping variable selected"}
+    d["_es_id"] = np.arange(len(d))
+    levels = [outer, "study_id", "_es_id"]
+    if d.groupby("study_id")[outer].nunique().max() > 1:
+        return {"status": f"Not run: some studies have more than one value of {outer}, so studies are not nested in {outer}"}
+    if d[outer].nunique() < 3:
+        return {"status": f"Not run: {outer} needs at least 3 groups"}
+    if (d.groupby("study_id").size() > 1).sum() == 0:
+        levels = [outer, "study_id"]
+    r = AM.multilevel(d, levels)
+    if r.get("status") != "Estimated":
+        return r
+    comp = r["components"].copy()
+    comp["level"] = comp["level"].replace({"study_id": "Studies", "_es_id": "Effect sizes within studies"})
+    return {"table": r["coefficients"], "variance_table": comp, "status": "Performed", "I2_total": r["I2_total"]}
+
+
 ADVANCED = {"tau_ci": _x_tau_ci, "pet_peese": _x_pet_peese, "selection": _x_selection, "peters": _x_peters, "failsafe": _x_failsafe,
-            "baujat": _x_baujat, "bayes": _x_bayes, "multilevel": _x_multilevel, "che_rve": _x_che_rve, "metareg_multi": _x_metareg_multi}
+            "baujat": _x_baujat, "bayes": _x_bayes, "multilevel": _x_multilevel, "che_rve": _x_che_rve, "metareg_multi": _x_metareg_multi,
+            "tau2_compare": _x_tau2_compare, "mh": _x_mh, "peto": _x_peto, "glmm": _x_glmm, "selection_multi": _x_selection_multi,
+            "influence_full": _x_influence_full, "tes": _x_tes, "metareg_adv": _x_metareg_adv, "location_scale": _x_location_scale,
+            "multilevel_nested": _x_multilevel_nested}

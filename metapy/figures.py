@@ -716,3 +716,70 @@ def dependent_rho_plot(res, theme="navy"):
     ax.set_title("CHE-RVE: sensitivity to ρ", loc="left", fontsize=10)
     fig.tight_layout()
     return fig
+
+
+def radial_plot(res, theme="navy"):
+    """Radial (Galbraith) plot: y_i / sqrt(v_i + tau^2) against 1 / sqrt(v_i + tau^2), with the pooled-effect line and
+    +/- 1.96 bands (Galbraith 1988; as in metafor::radial for random-effects models)."""
+    c_main, c_pool, _ = THEMES.get(theme, THEMES["navy"])
+    d = res.studies
+    y, v = d["yi"].to_numpy(float), d["vi"].to_numpy(float)
+    t2 = float(res.main.get("tau2") or 0.0)
+    mu = float(res.main.get("estimate"))
+    x = 1 / np.sqrt(v + t2)
+    z = y * x
+    fig, ax = plt.subplots(figsize=(6.2, 4.6))
+    xs = np.linspace(0, x.max() * 1.08, 50)
+    ax.plot(xs, mu * xs, color=c_pool, lw=1.2, label="pooled effect")
+    ax.plot(xs, mu * xs + 1.96, color="#999", lw=0.8, ls="--")
+    ax.plot(xs, mu * xs - 1.96, color="#999", lw=0.8, ls="--", label="±1.96")
+    ax.axhline(0, color="#ccc", lw=0.6)
+    ax.scatter(x, z, s=36, color=c_main, alpha=0.8, zorder=3)
+    out = np.abs(z - mu * x) > 1.96
+    lab = list(d["label"] if "label" in d else d["study_id"])
+    for xi, zi, o_, l_ in zip(x, z, out, lab):
+        if o_:
+            ax.annotate(str(l_), (xi, zi), fontsize=7.5, xytext=(4, 3), textcoords="offset points")
+    ax.set_xlim(0, None)
+    ax.set_xlabel("Precision, 1 / √(vᵢ + τ²)")
+    ax.set_ylabel("Standardized effect, yᵢ / √(vᵢ + τ²)")
+    ax.set_title("Radial (Galbraith) plot", loc="left", fontsize=10)
+    ax.legend(frameon=False, fontsize=8, loc="best")
+    fig.tight_layout()
+    return fig
+
+
+def labbe_plot(res, theme="navy"):
+    """L'Abbé plot: event proportion in the intervention group against the control group; point size by total sample size."""
+    c_main, c_pool, _ = THEMES.get(theme, THEMES["navy"])
+    d = res.studies
+    need = ["events_i", "n_i", "events_c", "n_c"]
+    if not all(c in d for c in need):
+        return None
+    a, n1, c, n2 = (pd.to_numeric(d[k], errors="coerce").to_numpy(float) for k in need)
+    ok = np.isfinite(a) & np.isfinite(n1) & np.isfinite(c) & np.isfinite(n2) & (n1 > 0) & (n2 > 0)
+    if ok.sum() < 2:
+        return None
+    p1, p2, n = a[ok] / n1[ok], c[ok] / n2[ok], (n1 + n2)[ok]
+    fig, ax = plt.subplots(figsize=(5.2, 5.0))
+    ax.scatter(p2, p1, s=20 + 280 * n / n.max(), color=c_main, alpha=0.45, edgecolor=c_main)
+    ax.plot([0, 1], [0, 1], color="#999", lw=0.8, ls="--", label="no effect")
+    est = res.main.get("estimate")
+    xs = np.linspace(0.0005, 0.9995, 200)
+    if est is not None:
+        k_ = res.measure.key
+        if k_ == "log_or":
+            ys = 1 / (1 + (1 - xs) / (xs * math.exp(est)))
+        elif k_ == "log_rr":
+            ys = np.clip(xs * math.exp(est), 0, 1)
+        else:
+            ys = np.clip(xs + est, 0, 1)
+        ax.plot(xs, ys, color=c_pool, lw=1.2, label="pooled effect")
+    hi = float(max(p1.max(), p2.max())) * 1.1 + 0.01
+    ax.set_xlim(0, min(1, hi)); ax.set_ylim(0, min(1, hi))
+    ax.set_xlabel("Event proportion, control group")
+    ax.set_ylabel("Event proportion, intervention group")
+    ax.set_title("L'Abbé plot", loc="left", fontsize=10)
+    ax.legend(frameon=False, fontsize=8)
+    fig.tight_layout()
+    return fig

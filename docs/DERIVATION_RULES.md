@@ -105,7 +105,7 @@
 | SE of MD from SDs (post) | exact | SD post-test / endpoint (intervention), SD post-test / endpoint (control), N (intervention), N (control) | SE of mean difference (endpoint) | `SE = sqrt(SD_i^2/n_i + SD_c^2/n_c)` | Borenstein et al. 2009, eq. 4.5 |
 | Pooled SD (post) | exact | SD post-test / endpoint (intervention), SD post-test / endpoint (control), N (intervention), N (control) | Pooled SD (endpoint) | `SDp = sqrt(((n_i-1)SD_i^2 + (n_c-1)SD_c^2)/(n_i+n_c-2))` | Borenstein et al. 2009, eq. 4.19 |
 | MD from its 95% CI (post) | exact | MD 95% CI lower (endpoint), MD 95% CI upper (endpoint) | Mean difference (endpoint) | `MD = (lower + upper)/2` | Cochrane Handbook 6.3.1 |
-| SE of MD from its 95% CI (post) | exact | MD 95% CI lower (endpoint), MD 95% CI upper (endpoint) | SE of mean difference (endpoint) | `SE = (upper - lower) / 3.92` | Cochrane Handbook 6.3.1 |
+| SE of MD from its 95% CI (post) | exact | MD 95% CI lower (endpoint), MD 95% CI upper (endpoint) | SE of mean difference (endpoint) | `SE = (upper - lower) / (2 x 1.959964)` | Cochrane Handbook 6.3.1 |
 | |t| from two-sided p value (post) | exact | p value (endpoint), N (intervention), N (control) | |t| (endpoint) | `|t| = t^-1(1 - p/2, n_i + n_c - 2)` | Cochrane Handbook 6.5.2.3 |
 | |t| from F with 1 df (post) | exact | F statistic (endpoint) | |t| (endpoint) | `|t| = sqrt(F)` | Borenstein et al. 2009, ch. 7 |
 | |t| from t (post) | exact | t statistic (endpoint) | |t| (endpoint) | `|t| = abs(t)` |  |
@@ -123,14 +123,14 @@
 | Variance of g from its SE (post) | exact | SE of g (endpoint) | Variance of g (endpoint) | `V = SE^2` |  |
 | Variance of d from its SE (post) | exact | SE of d (endpoint) | Variance of d (endpoint) | `V = SE^2` |  |
 | g from its 95% CI (post) | exact | g 95% CI lower (endpoint), g 95% CI upper (endpoint) | Hedges' g (endpoint) | `g = (lower + upper)/2` |  |
-| SE of g from its 95% CI (post) | exact | g 95% CI lower (endpoint), g 95% CI upper (endpoint) | SE of g (endpoint) | `SE = (upper - lower)/3.92` | Cochrane Handbook 6.3.1 |
+| SE of g from its 95% CI (post) | exact | g 95% CI lower (endpoint), g 95% CI upper (endpoint) | SE of g (endpoint) | `SE = (upper - lower) / (2 x 1.959964)` | Cochrane Handbook 6.3.1 |
 | d from its 95% CI (post) | exact | d 95% CI lower (endpoint), d 95% CI upper (endpoint) | Cohen's d (endpoint) | `d = (lower + upper)/2` |  |
-| SE of d from its 95% CI (post) | exact | d 95% CI lower (endpoint), d 95% CI upper (endpoint) | SE of d (endpoint) | `SE = (upper - lower)/3.92` | Cochrane Handbook 6.3.1 |
+| SE of d from its 95% CI (post) | exact | d 95% CI lower (endpoint), d 95% CI upper (endpoint) | SE of d (endpoint) | `SE = (upper - lower) / (2 x 1.959964)` | Cochrane Handbook 6.3.1 |
 | Mean difference (change) | exact | Mean change from baseline (intervention), Mean change from baseline (control) | Mean difference (change) | `MD = mean_i - mean_c` |  |
 | SE of MD from SDs (change) | exact | SD change from baseline (intervention), SD change from baseline (control), N (intervention), N (control) | SE of mean difference (change) | `SE = sqrt(SD_i^2/n_i + SD_c^2/n_c)` | Borenstein et al. 2009, eq. 4.5 |
 | Pooled SD (change) | exact | SD change from baseline (intervention), SD change from baseline (control), N (intervention), N (control) | Pooled SD (change) | `SDp = sqrt(((n_i-1)SD_i^2 + (n_c-1)SD_c^2)/(n_i+n_c-2))` | Borenstein et al. 2009, eq. 4.19 |
 | MD from its 95% CI (change) | exact | MD 95% CI lower (change), MD 95% CI upper (change) | Mean difference (change) | `MD = (lower + upper)/2` | Cochrane Handbook 6.3.1 |
-| SE of MD from its 95% CI (change) | exact | MD 95% CI lower (change), MD 95% CI upper (change) | SE of mean difference (change) | `SE = (upper - lower) / 3.92` | Cochrane Handbook 6.3.1 |
+| SE of MD from its 95% CI (change) | exact | MD 95% CI lower (change), MD 95% CI upper (change) | SE of mean difference (change) | `SE = (upper - lower) / (2 x 1.959964)` | Cochrane Handbook 6.3.1 |
 | |t| from two-sided p value (change) | exact | p value (change), N (intervention), N (control) | |t| (change) | `|t| = t^-1(1 - p/2, n_i + n_c - 2)` | Cochrane Handbook 6.5.2.3 |
 | |t| from F with 1 df (change) | exact | F statistic (change) | |t| (change) | `|t| = sqrt(F)` | Borenstein et al. 2009, ch. 7 |
 | |t| from t (change) | exact | t statistic (change) | |t| (change) | `|t| = abs(t)` |  |
@@ -148,9 +148,9 @@
 | Variance of g from its SE (change) | exact | SE of g (change) | Variance of g (change) | `V = SE^2` |  |
 | Variance of d from its SE (change) | exact | SE of d (change) | Variance of d (change) | `V = SE^2` |  |
 | g from its 95% CI (change) | exact | g 95% CI lower (change), g 95% CI upper (change) | Hedges' g (change) | `g = (lower + upper)/2` |  |
-| SE of g from its 95% CI (change) | exact | g 95% CI lower (change), g 95% CI upper (change) | SE of g (change) | `SE = (upper - lower)/3.92` | Cochrane Handbook 6.3.1 |
+| SE of g from its 95% CI (change) | exact | g 95% CI lower (change), g 95% CI upper (change) | SE of g (change) | `SE = (upper - lower) / (2 x 1.959964)` | Cochrane Handbook 6.3.1 |
 | d from its 95% CI (change) | exact | d 95% CI lower (change), d 95% CI upper (change) | Cohen's d (change) | `d = (lower + upper)/2` |  |
-| SE of d from its 95% CI (change) | exact | d 95% CI lower (change), d 95% CI upper (change) | SE of d (change) | `SE = (upper - lower)/3.92` | Cochrane Handbook 6.3.1 |
+| SE of d from its 95% CI (change) | exact | d 95% CI lower (change), d 95% CI upper (change) | SE of d (change) | `SE = (upper - lower) / (2 x 1.959964)` | Cochrane Handbook 6.3.1 |
 | SMD of unstated type treated as Hedges' g | assumption | SMD (type not stated) | Hedges' g (endpoint) | `g = reported SMD` | Researcher decision |
 | SMD of unstated type treated as Cohen's d | assumption | SMD (type not stated) | Cohen's d (endpoint) | `d = reported SMD` | Researcher decision |
 | SE of unstated SMD treated as SE of g | assumption | SE of SMD (type not stated) | SE of g (endpoint) | `SE(g) = reported SE` |  |
@@ -164,19 +164,19 @@
 | Risk difference from 2x2 table | exact | Events (intervention), N (intervention), Events (control), N (control) | Risk difference, Variance of RD | `RD = a/n_i - c/n_c; V = p_i(1-p_i)/n_i + p_c(1-p_c)/n_c` | Borenstein et al. 2009, eq. 5.13-5.14 |
 | log OR from reported OR | exact | Odds ratio | log odds ratio | `lnOR = ln(OR)` |  |
 | log OR from its 95% CI | exact | OR 95% CI lower, OR 95% CI upper | log odds ratio | `lnOR = (ln lower + ln upper)/2` |  |
-| SE of log OR from 95% CI | exact | OR 95% CI lower, OR 95% CI upper | SE of log OR | `SE = (ln upper - ln lower)/3.92` | Cochrane Handbook 6.3.2 |
+| SE of log OR from 95% CI | exact | OR 95% CI lower, OR 95% CI upper | SE of log OR | `SE = (ln upper - ln lower) / (2 x 1.959964)` | Cochrane Handbook 6.3.2 |
 | SE of log OR from p value | exact | log odds ratio, p value for OR | SE of log OR | `SE = |lnOR| / z(1 - p/2)` | Altman & Bland 2011, BMJ |
 | Variance of log OR from SE | exact | SE of log OR | Variance of log OR | `V = SE^2` |  |
 | SE of log OR from variance | exact | Variance of log OR | SE of log OR | `SE = sqrt(V)` |  |
 | log RR from reported RR | exact | Risk ratio | log risk ratio | `lnRR = ln(RR)` |  |
 | log RR from its 95% CI | exact | RR 95% CI lower, RR 95% CI upper | log risk ratio | `lnRR = (ln lower + ln upper)/2` |  |
-| SE of log RR from 95% CI | exact | RR 95% CI lower, RR 95% CI upper | SE of log RR | `SE = (ln upper - ln lower)/3.92` | Cochrane Handbook 6.3.2 |
+| SE of log RR from 95% CI | exact | RR 95% CI lower, RR 95% CI upper | SE of log RR | `SE = (ln upper - ln lower) / (2 x 1.959964)` | Cochrane Handbook 6.3.2 |
 | SE of log RR from p value | exact | log risk ratio, p value for RR | SE of log RR | `SE = |lnRR| / z(1 - p/2)` | Altman & Bland 2011, BMJ |
 | Variance of log RR from SE | exact | SE of log RR | Variance of log RR | `V = SE^2` |  |
 | SE of log RR from variance | exact | Variance of log RR | SE of log RR | `SE = sqrt(V)` |  |
 | log HR from reported HR | exact | Hazard ratio | log hazard ratio | `lnHR = ln(HR)` |  |
 | log HR from its 95% CI | exact | HR 95% CI lower, HR 95% CI upper | log hazard ratio | `lnHR = (ln lower + ln upper)/2` |  |
-| SE of log HR from 95% CI | exact | HR 95% CI lower, HR 95% CI upper | SE of log HR | `SE = (ln upper - ln lower)/3.92` | Cochrane Handbook 6.3.2 |
+| SE of log HR from 95% CI | exact | HR 95% CI lower, HR 95% CI upper | SE of log HR | `SE = (ln upper - ln lower) / (2 x 1.959964)` | Cochrane Handbook 6.3.2 |
 | SE of log HR from p value | exact | log hazard ratio, p value for HR | SE of log HR | `SE = |lnHR| / z(1 - p/2)` | Altman & Bland 2011, BMJ |
 | Variance of log HR from SE | exact | SE of log HR | Variance of log HR | `V = SE^2` |  |
 | SE of log HR from variance | exact | Variance of log HR | SE of log HR | `SE = sqrt(V)` |  |
@@ -190,7 +190,7 @@
 | Events from proportion | approximation | Proportion (single group), Total N | Events (single group) | `events = round(p x N)` |  |
 | Logit proportion | exact | Events (single group), Total N | Logit proportion, Variance of logit proportion | `logit = ln(p/(1-p)); V = 1/e + 1/(N-e)` | Lipsey & Wilson 2001 |
 | Generic effect from 95% CI | exact | Generic effect 95% CI lower, Generic effect 95% CI upper | Generic effect estimate | `estimate = (lower + upper)/2` |  |
-| SE of generic effect from 95% CI | exact | Generic effect 95% CI lower, Generic effect 95% CI upper | SE of generic effect | `SE = (upper - lower)/3.92` |  |
+| SE of generic effect from 95% CI | exact | Generic effect 95% CI lower, Generic effect 95% CI upper | SE of generic effect | `SE = (upper - lower) / (2 x 1.959964)` |  |
 | Variance of generic effect | exact | SE of generic effect | Variance of generic effect | `V = SE^2` |  |
 | Variance of MD from its SE (post) | exact | SE of mean difference (endpoint) | md_var_post | `V = SE^2` |  |
 | Variance of MD from its SE (change) | exact | SE of mean difference (change) | md_var_change | `V = SE^2` |  |
@@ -204,6 +204,6 @@
 | Reported SE of g used for Morris PPC2 g | assumption | SE of reported Hedges' g | SE of Morris PPC2 g | `se_g_ppc2 = reported SE` |  |
 | Reported CI of g used for Morris PPC2 g | assumption | Reported g 95% CI lower, Reported g 95% CI upper | PPC2 g 95% CI lower, PPC2 g 95% CI upper | `CI = reported CI` |  |
 | Variance of PPC2 g from its SE | exact | SE of Morris PPC2 g | Variance of Morris PPC2 g | `V = SE^2` |  |
-| SE of PPC2 g from its 95% CI | exact | PPC2 g 95% CI lower, PPC2 g 95% CI upper | SE of Morris PPC2 g | `SE = (upper - lower)/3.92` | Cochrane Handbook 6.3.1 |
+| SE of PPC2 g from its 95% CI | exact | PPC2 g 95% CI lower, PPC2 g 95% CI upper | SE of Morris PPC2 g | `SE = (upper - lower) / (2 x 1.959964)` | Cochrane Handbook 6.3.1 |
 | Variance of change-score g from its SE | exact | SE of g (change) | Variance of g (change) | `V = SE^2` |  |
 | Approximate PPC2 variance (independent-groups formula) | approximation | Morris PPC2 g, N (intervention), N (control) | Variance of Morris PPC2 g | `V ≈ (n_i+n_c)/(n_i n_c) + g^2/(2(n_i+n_c))` | Borenstein et al. 2009, eq. 4.20; approximates Morris 2008 with r = 0.5 |

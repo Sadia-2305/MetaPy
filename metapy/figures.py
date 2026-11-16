@@ -45,6 +45,15 @@ def _fmt(x, d=2):
     return "—" if x is None or (isinstance(x, float) and not math.isfinite(x)) else f"{x:.{d}f}"
 
 
+def _pfmt(p) -> str:
+    """'p = 0.034' or 'p < 0.001' (never 'p = 0.000')."""
+    try:
+        p = float(p)
+    except (TypeError, ValueError):
+        return "p = n/a"
+    return "p < 0.001" if p < 0.001 else f"p = {p:.3f}"
+
+
 def _forest_core(rows: pd.DataFrame, pooled: list[dict[str, Any]], m, title: str, theme: str, left_right=("", ""),
                  width=9.0, row_h=0.32, show_weights=True, xlabel=None):
     """rows: label, yi, ci_lo, ci_hi, weight, basis, kind ('study'|'header'|'spacer'). pooled: dicts drawn as diamonds."""
@@ -100,10 +109,14 @@ def _forest_core(rows: pd.DataFrame, pooled: list[dict[str, Any]], m, title: str
                 fig.text(0.01, _yfig(ax, fig, y + 0.75), it["het"], fontsize=7.5, color="#555555", va="center")
     ax.set_yticks([])
     ax.spines["left"].set_visible(False)
-    if log:
-        ticks = ax.get_xticks()
+    if log:                                        # ratio scale: ticks at round ratios (0.1, 0.2, 0.5, 1, 2, 5, ...)
+        cands = [b * 10.0 ** e for e in range(-4, 5) for b in (1, 2, 5)]
+        ticks = [math.log(c) for c in cands if lo - pad <= math.log(c) <= hi + pad]
+        if len(ticks) < 3:
+            cands = [b * 10.0 ** e for e in range(-4, 5) for b in (1, 1.5, 2, 3, 5, 7)]
+            ticks = [math.log(c) for c in cands if lo - pad <= math.log(c) <= hi + pad]
         ax.set_xticks(ticks)
-        ax.set_xticklabels([f"{math.exp(t):.2g}" for t in ticks])
+        ax.set_xticklabels([f"{math.exp(t):g}" for t in ticks])
         ax.set_xlim(lo - pad, hi + pad)
     ax.set_xlabel(xlabel or m.reported_label)
     top = _yfig(ax, fig, -1.0)
@@ -132,8 +145,8 @@ def _yfig(ax, fig, y):
 def _het_text(r):
     if r.get("status") != "Pooled":
         return ""
-    t = f"Heterogeneity: I² = {r['I2']:.0f}%, τ² = {r['tau2']:.3f}, Q = {r['Q']:.2f} (df = {r['Q_df']}, p = {r['Q_p']:.3f})"
-    return t + f"; test for effect: {r['stat_label']} = {r['stat']:.2f}, p = {r['p']:.3g}"
+    t = f"Heterogeneity: I² = {r['I2']:.0f}%, τ² = {r['tau2']:.3f}, Q = {r['Q']:.2f} (df = {r['Q_df']}, {_pfmt(r['Q_p'])})"
+    return t + f"; test for effect: {r['stat_label']} = {r['stat']:.2f}, {_pfmt(r['p'])}"
 
 
 def forest_plot(res, theme="navy", width=9.0, row_h=0.32, sort_by: str | None = None):
@@ -208,7 +221,7 @@ def subgroup_forest(res, key, theme="navy", width=9.0, row_h=0.32):
                           "ci_hi": rr["ci_hi"], "pi_lo": None, "het": f"I² = {rr['I2']:.0f}%, τ² = {rr['tau2']:.3f}"})
         items.append({"kind": "spacer"})
     r = res.main
-    test = f"Test for subgroup differences: Q = {sg['Q_between']:.2f}, df = {sg['df']}, p = {sg['p_between']:.3f}" if "Q_between" in sg else sg.get("note", "")
+    test = f"Test for subgroup differences: Q = {sg['Q_between']:.2f}, df = {sg['df']}, {_pfmt(sg['p_between'])}" if "Q_between" in sg else sg.get("note", "")
     overall = [{"label": f"Overall (k = {r['k']})", "estimate": r["estimate"], "ci_lo": r["ci_lo"], "ci_hi": r["ci_hi"],
                 "pi_lo": r.get("pi_lo"), "pi_hi": r.get("pi_hi"), "het": test}]
     fig = _forest_core(pd.DataFrame(items), overall, res.measure, f"{res.prep.plan['outcome']} by {col}", theme,
@@ -275,7 +288,7 @@ def bubble_plot(res, key, theme="navy"):
         ax.set_xlabel(col)
     ax.axhline(0, color="#999", lw=0.6)
     ax.set_ylabel(res.measure.label)
-    ax.set_title(f"Meta-regression on {col} (QM p = {mr['QM_p']:.3f}, R² = {mr['R2_percent']:.0f}%)", loc="left", fontsize=10)
+    ax.set_title(f"Meta-regression on {col} (QM {_pfmt(mr['QM_p'])}, R² = {mr['R2_percent']:.0f}%)", loc="left", fontsize=10)
     fig.tight_layout()
     return fig
 

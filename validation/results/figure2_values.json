@@ -1,0 +1,18 @@
+{
+ "study": "M7",
+ "values": {
+  "SE of mean difference (endpoint)": 1.0178758465646847,
+  "Pooled SD (endpoint)": 7.168260116596333,
+  "Cohen's d (endpoint)": -0.6751987122780572,
+  "Variance of d (endpoint)": 0.02130305616827136,
+  "Variance of g (endpoint)": 0.021141771780429787,
+  "Variance of best-available g": 0.021141771780429787,
+  "Hedges' g (endpoint)": -0.6726379080595563,
+  "Hedges' g (best available design)": -0.6726379080595563
+ },
+ "cell": "-4.84 (-6.83 to -2.84)",
+ "n": [
+  91,
+  109
+ ]
+}

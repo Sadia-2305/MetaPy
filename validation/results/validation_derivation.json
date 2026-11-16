@@ -1,0 +1,29 @@
+{
+ "ppc2": {
+  "k": 40,
+  "included": 40,
+  "max_diff_g": 2.220446049250313e-16,
+  "max_diff_v": 1.1102230246251565e-16
+ },
+ "endpoint": {
+  "k": 40,
+  "included": 40,
+  "max_diff_g": 2.220446049250313e-16,
+  "max_diff_v": 6.938893903907228e-18
+ },
+ "md_ci_chain": {
+  "k": 30,
+  "included": 30,
+  "max_diff_g": 2.220446049250313e-16,
+  "max_diff_v": 6.938893903907228e-18,
+  "steps_logged_first_study": 6,
+  "steps": [
+   "SE of mean difference (endpoint)",
+   "Pooled SD (endpoint)",
+   "Cohen's d (endpoint)",
+   "Variance of d (endpoint)",
+   "Variance of g (endpoint)",
+   "Hedges' g (endpoint)"
+  ]
+ }
+}

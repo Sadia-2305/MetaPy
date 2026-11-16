@@ -9,7 +9,7 @@ MetaPy reads your extraction sheet (CSV or Excel). It works out which meta-analy
 
 ## The derivation brain
 
-`metapy/derive/` holds a registry of **167 cited formulas**; `docs/DERIVATION_RULES.md` lists all of them. A solver chains them for each study:
+`metapy/derive/` holds a registry of **180 cited formulas**; `docs/DERIVATION_RULES.md` lists all of them. A solver chains them for each study:
 
 1. **Exact rules first.** Examples: SD from SE or 95% CI, Cohen's d from t or p, Hedges' g from d, log OR and its variance from a 2×2 table or from an OR with CI, change-score SD from the pre-post correlation, and Morris PPC2.
 2. **Published approximations next.** Examples: mean/SD from median, IQR or range (Wan 2014; Luo 2018), OR↔SMD (Chinn 2000), r↔d, Spearman to Pearson, events from percentages, and p-value thresholds such as "p<0.05". The researcher can veto each group.
@@ -68,6 +68,10 @@ s.export(["docx", "xlsx"], "output")
 ```
 
 ## Validation
+
+The folder `validation/` reproduces every number in the MetaPy paper (comparison with metafor's documented results, an
+independent implementation, and simulations); see `validation/README.md`.
+
 
 `tests/test_metapy.py` (42 tests) and `tests/test_v5.py` (17 tests, see above) check:
 - pooling against **metafor** reference values for the BCG dataset (REML, DL, fixed effect, and meta-regression on latitude)

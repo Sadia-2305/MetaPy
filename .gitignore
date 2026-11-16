@@ -20,6 +20,8 @@ MetaPy_report*
 *.csv
 !examples/*.xlsx
 !examples/*.csv
+!validation/data/*.xlsx
+!validation/data/*.csv
 *.docx
 
 # OS

@@ -240,7 +240,7 @@ for _b in ("post", "change"):
 
     rule(f"MD from its 95% CI ({_b})", [mdlo, mdhi], [md], formula="MD = (lower + upper)/2", citation="Cochrane Handbook 6.3.1")(
         lambda v, s, lo=mdlo, hi=mdhi, md=md: {md: (v[lo] + v[hi]) / 2.0} if v[hi] >= v[lo] else None)
-    rule(f"SE of MD from its 95% CI ({_b})", [mdlo, mdhi], [mdse], formula="SE = (upper - lower) / 3.92", citation="Cochrane Handbook 6.3.1")(
+    rule(f"SE of MD from its 95% CI ({_b})", [mdlo, mdhi], [mdse], formula="SE = (upper - lower) / (2 x 1.959964)", citation="Cochrane Handbook 6.3.1")(
         lambda v, s, lo=mdlo, hi=mdhi, se=mdse: {se: (v[hi] - v[lo]) / (2 * Z975)} if v[hi] > v[lo] else None)
 
     def _tabs_from_p(v, s, pp=pp, tab=tab):
@@ -296,11 +296,11 @@ for _b in ("post", "change"):
     rule(f"Variance of d from its SE ({_b})", [sed], [vd], formula="V = SE^2", priority=20)(lambda v, s, sed=sed, vd=vd: {vd: v[sed] ** 2})
     rule(f"g from its 95% CI ({_b})", [glo, ghi], [g], formula="g = (lower + upper)/2", priority=70)(
         lambda v, s, lo=glo, hi=ghi, g=g: {g: (v[lo] + v[hi]) / 2} if v[hi] >= v[lo] else None)
-    rule(f"SE of g from its 95% CI ({_b})", [glo, ghi], [seg], formula="SE = (upper - lower)/3.92", citation="Cochrane Handbook 6.3.1", priority=20)(
+    rule(f"SE of g from its 95% CI ({_b})", [glo, ghi], [seg], formula="SE = (upper - lower) / (2 x 1.959964)", citation="Cochrane Handbook 6.3.1", priority=20)(
         lambda v, s, lo=glo, hi=ghi, se=seg: {se: (v[hi] - v[lo]) / (2 * Z975)} if v[hi] > v[lo] else None)
     rule(f"d from its 95% CI ({_b})", [dlo, dhi], [d], formula="d = (lower + upper)/2", priority=70)(
         lambda v, s, lo=dlo, hi=dhi, d=d: {d: (v[lo] + v[hi]) / 2} if v[hi] >= v[lo] else None)
-    rule(f"SE of d from its 95% CI ({_b})", [dlo, dhi], [sed], formula="SE = (upper - lower)/3.92", citation="Cochrane Handbook 6.3.1", priority=20)(
+    rule(f"SE of d from its 95% CI ({_b})", [dlo, dhi], [sed], formula="SE = (upper - lower) / (2 x 1.959964)", citation="Cochrane Handbook 6.3.1", priority=20)(
         lambda v, s, lo=dlo, hi=dhi, se=sed: {se: (v[hi] - v[lo]) / (2 * Z975)} if v[hi] > v[lo] else None)
 
 # Unspecified SMD: researcher states whether it is d or g
@@ -419,7 +419,7 @@ for _m in ("or", "rr", "hr"):
         lambda v, s, m=_m, lm=lm: {lm: math.log(v[m])} if v[m] > 0 else None)
     rule(f"log {up} from its 95% CI", [lo, hi], [lm], formula=f"ln{up} = (ln lower + ln upper)/2", priority=70)(
         lambda v, s, lo=lo, hi=hi, lm=lm: {lm: (math.log(v[lo]) + math.log(v[hi])) / 2} if _pos(v[lo], v[hi]) else None)
-    rule(f"SE of log {up} from 95% CI", [lo, hi], [se], formula=f"SE = (ln upper - ln lower)/3.92", citation="Cochrane Handbook 6.3.2")(
+    rule(f"SE of log {up} from 95% CI", [lo, hi], [se], formula=f"SE = (ln upper - ln lower) / (2 x 1.959964)", citation="Cochrane Handbook 6.3.2")(
         lambda v, s, lo=lo, hi=hi, se=se: {se: (math.log(v[hi]) - math.log(v[lo])) / (2 * Z975)} if _pos(v[lo], v[hi]) and v[hi] > v[lo] else None)
     rule(f"SE of log {up} from p value", [lm, p_], [se], formula=f"SE = |ln{up}| / z(1 - p/2)", citation="Altman & Bland 2011, BMJ")(
         lambda v, s, lm=lm, p_=p_, se=se: {se: abs(v[lm]) / float(norm.isf(v[p_] / 2))} if 0 < v[p_] < 1 and v[lm] != 0 else None)
@@ -501,7 +501,7 @@ rule("Logit proportion", ["events", "n_total"], ["logit_prop", "var_logit_prop"]
 # =====================================================================
 rule("Generic effect from 95% CI", ["effect_ci_lo", "effect_ci_hi"], ["effect"], formula="estimate = (lower + upper)/2", priority=70)(
     lambda v, s: {"effect": (v["effect_ci_lo"] + v["effect_ci_hi"]) / 2})
-rule("SE of generic effect from 95% CI", ["effect_ci_lo", "effect_ci_hi"], ["effect_se"], formula="SE = (upper - lower)/3.92")(
+rule("SE of generic effect from 95% CI", ["effect_ci_lo", "effect_ci_hi"], ["effect_se"], formula="SE = (upper - lower) / (2 x 1.959964)")(
     lambda v, s: {"effect_se": (v["effect_ci_hi"] - v["effect_ci_lo"]) / (2 * Z975)} if v["effect_ci_hi"] > v["effect_ci_lo"] else None)
 rule("Variance of generic effect", ["effect_se"], ["var_effect"], formula="V = SE^2", priority=20)(lambda v, s: {"var_effect": v["effect_se"] ** 2})
 
@@ -526,7 +526,7 @@ for _t, _g, _se, _lo, _hi in (("post", "g_post", "se_g_post", "g_ci_lo_post", "g
         lambda v, s, lo=_lo, hi=_hi: {lo: v["g_reported_ci_lo"], hi: v["g_reported_ci_hi"]})
 
 rule("Variance of PPC2 g from its SE", ["se_g_ppc2"], ["var_g_ppc2"], formula="V = SE^2", priority=20)(lambda v, s: {"var_g_ppc2": v["se_g_ppc2"] ** 2})
-rule("SE of PPC2 g from its 95% CI", ["g_ppc2_ci_lo", "g_ppc2_ci_hi"], ["se_g_ppc2"], formula="SE = (upper - lower)/3.92",
+rule("SE of PPC2 g from its 95% CI", ["g_ppc2_ci_lo", "g_ppc2_ci_hi"], ["se_g_ppc2"], formula="SE = (upper - lower) / (2 x 1.959964)",
      citation="Cochrane Handbook 6.3.1", priority=20)(
     lambda v, s: {"se_g_ppc2": (v["g_ppc2_ci_hi"] - v["g_ppc2_ci_lo"]) / (2 * Z975)} if v["g_ppc2_ci_hi"] > v["g_ppc2_ci_lo"] else None)
 rule("Variance of change-score g from its SE", ["se_g_change"], ["var_g_change"], formula="V = SE^2", priority=20)(

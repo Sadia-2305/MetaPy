@@ -24,6 +24,7 @@ import streamlit as st  # noqa: E402
 
 from metapy import __version__  # noqa: E402
 from metapy.analysis import summary_table  # noqa: E402
+from metapy.diagnose import diagnose, diagnosis_md  # noqa: E402
 from metapy.app import (DEFAULT_FIGURES, DEFAULT_TABLES, G_FROM, PRISMA_HINTS, PRISMA_KEYS, WEB_NOTICE, _g_rows,  # noqa: E402
                         _prisma_dict, plan_status, prep_summary_md, preview_md, results_md, scan_overview_md)
 from metapy.export import FORMATS, display_frame  # noqa: E402
@@ -34,7 +35,8 @@ from metapy.session import MetaPySession  # noqa: E402
 
 st.set_page_config(page_title="MetaPy: transparent meta-analysis", page_icon="📊", layout="wide")
 ss = st.session_state
-for _k, _v in (("s", None), ("gen", 0), ("tmpdir", None), ("flash", {}), ("nma_src", None), ("nma_last", None), ("exports", [])):
+for _k, _v in (("s", None), ("gen", 0), ("tmpdir", None), ("flash", {}), ("nma_src", None), ("nma_last", None), ("exports", []),
+               ("src_path", None), ("load_error", None), ("groups", []), ("group_cb", True)):
     if _k not in ss:
         ss[_k] = _v
 
@@ -77,17 +79,45 @@ def approved_ids(s) -> list[str]:
     return [p for p, ok in s.approved.items() if ok]
 
 
-def new_file(upload, group: bool) -> None:
-    """Read a newly uploaded file into a brand-new session (previous data are discarded)."""
+def _combined_groups(s) -> list[str]:
+    om = s.ds.outcome_map
+    if om is None or om.empty:
+        return []
+    return [f"{r['scales']} → {r['outcome']}" for _, r in om.iterrows() if "," in str(r["scales"])]
+
+
+def read_file(path: str, group: bool = True) -> bool:
+    """Read a file into a brand-new session (previous data are discarded). On failure, keep a plain-language
+    diagnosis instead of a raw error. Returns True when the file was read."""
+    ss.s, ss.gen = None, ss.gen + 1
+    ss.flash, ss.nma_src, ss.nma_last, ss.exports, ss.load_error = {}, None, None, [], None
+    try:
+        s = MetaPySession()
+        s.load(path, group_constructs=group)
+    except Exception as exc:  # explain, never show a raw error
+        ss.load_error = diagnose(path, exc)
+        return False
+    ss.s = s
+    if group:
+        ss.groups = _combined_groups(s)
+    return True                     # a file with no possible analysis is explained in the overview below
+
+
+def new_file(upload) -> bool:
     if ss.tmpdir:
         shutil.rmtree(ss.tmpdir, ignore_errors=True)
     ss.tmpdir = tempfile.mkdtemp(prefix="metapy_upload_")
     path = Path(ss.tmpdir) / Path(upload.name).name
     path.write_bytes(upload.getvalue())
-    s = MetaPySession()
-    s.load(str(path), group_constructs=group)
-    ss.s, ss.gen = s, ss.gen + 1
-    ss.flash, ss.nma_src, ss.nma_last, ss.exports = {}, None, None, []
+    ss.src_path, ss.groups, ss.group_cb = str(path), [], True
+    return read_file(str(path), True)
+
+
+def _regroup() -> None:
+    if ss.src_path:
+        read_file(ss.src_path, bool(ss.group_cb))
+        flash("1", "success", "File read again " + ("with" if ss.group_cb else "without") + " combining scales; everything else "
+                              "was reset.")
 
 
 s = ss.s
@@ -107,21 +137,24 @@ tabs = st.tabs(["1 · Upload & choose", "2 · Prepare data", "3 · Analyse & rev
 with tabs[0]:
     show_flash("1")
     up = st.file_uploader("Data file (.csv, .tsv, .xlsx, .xlsm)", type=["csv", "tsv", "txt", "xlsx", "xlsm", "xls"], key="uploader")
-    group = True
-    if up is not None:
-        group = st.checkbox("Combine different scales of the same construct into one outcome "
-                            "(e.g. HAM-A, BAI, GAD-7 → Anxiety; hsCRP + CRP → CRP)", value=True, key="group_constructs")
     if st.button("Read file and find possible analyses", type="primary", key="btn_read", disabled=up is None):
-        try:
-            with st.spinner("Reading the file…"):
-                new_file(up, group)
+        with st.spinner("Reading the file…"):
+            ok = new_file(up)
+        if ok:
             flash("1", "success", "File read. Everything from any previously loaded file has been cleared.")
-        except Exception as exc:  # show the reason, keep the page usable
-            ss.s = None
-            flash("1", "error", f"Could not read the file: {exc}")
         st.rerun()
 
+    if ss.load_error:
+        d = ss.load_error
+        st.warning(diagnosis_md(d))
+        if d.get("detail"):
+            with st.expander("Technical detail (for the developer)"):
+                st.code(d["detail"])
+
     if s is not None and s.scan_report is not None:
+        if ss.groups:
+            st.checkbox("Combine different scales of the same construct into one outcome: " + "; ".join(ss.groups),
+                        key="group_cb", on_change=_regroup)
         st.markdown(scan_overview_md(s))
         by_id = {p["plan_id"]: p for p in s.scan_report.plans}
         for p_ in s.scan_report.plans:                      # recommended plans start ticked
@@ -152,6 +185,9 @@ with tabs[0]:
                 flash("1", "success", "Plans selected. Continue in **2 · Prepare data**.")
             except ValueError as exc:
                 flash("1", "error", str(exc))
+            except Exception as exc:
+                flash("1", "error", "MetaPy could not prepare these plans because of an unexpected problem in MetaPy (not in "
+                                    f"your choices). Please send the file to the developer. Technical detail: {type(exc).__name__}: {exc}")
             st.rerun()
         with st.expander("How MetaPy read your columns"):
             table(s.ds.column_map)
@@ -195,8 +231,12 @@ with tabs[1]:
                     if v is None:
                         continue
                     ans[q["id"]] = [opts[j][1] for j in v] if q.get("multi") else opts[v][1]
-                s.answer(pid, ans)
-                flash("2", "success", "Your choice was applied and everything was recalculated.")
+                try:
+                    s.answer(pid, ans)
+                    flash("2", "success", "Your choice was applied and everything was recalculated.")
+                except Exception as exc:
+                    flash("2", "error", "This choice could not be applied because of an unexpected problem in MetaPy. Please send the "
+                                        f"file to the developer. Technical detail: {type(exc).__name__}: {exc}")
 
             for q in p.questions:
                 opts = q["options"]
@@ -326,10 +366,14 @@ with tabs[2]:
                 if unapproved:
                     _, refused = s.approve_many(sorted(set(approved_ids(s)) | set(unapproved)))
                     ticked = [x for x in ticked if x not in refused]
-                with st.spinner("Analysing…"):
-                    s.analyse({**opts, "extras": list(extras)}, ticked)
-                left = [s.plans[x]["outcome"] for x in s.plans if x not in s.results]
-                flash("3", "success", f"Analysed {len(s.results)} plan(s)." + (f" Not included in this run: {', '.join(left)}." if left else ""))
+                try:
+                    with st.spinner("Analysing…"):
+                        s.analyse({**opts, "extras": list(extras)}, ticked)
+                    left = [s.plans[x]["outcome"] for x in s.plans if x not in s.results]
+                    flash("3", "success", f"Analysed {len(s.results)} plan(s)." + (f" Not included in this run: {', '.join(left)}." if left else ""))
+                except Exception as exc:
+                    flash("3", "error", "The analysis stopped because of an unexpected problem in MetaPy. Please send the file to the "
+                                        f"developer. Technical detail: {type(exc).__name__}: {exc}")
             st.rerun()
 
         if s.results:

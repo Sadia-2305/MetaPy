@@ -80,7 +80,9 @@ def scan_overview_md(s) -> str:
     if o["multi_arm_candidates"]:
         md.append(f"- {o['multi_arm_candidates']} multi-arm study/outcome group(s) found; MetaPy will ask how to handle the shared control")
     if not rep.plans:
-        md.append("\n**No analysis is possible yet:** fewer than 2 studies per outcome have usable statistics. See the column mapping below.")
+        from .diagnose import diagnose, diagnosis_md
+        md.append("\n" + diagnosis_md(diagnose(s.source_path)) if getattr(s, "source_path", None) else
+                  "\n**No analysis is possible yet:** fewer than 2 studies per outcome have usable statistics. See the column mapping below.")
     else:
         md.append("\n### Possible analyses\nPick **one effect measure per outcome** below. MetaPy has ranked them: the first for each outcome uses the most studies with the fewest approximations.")
     chars = rep.characteristics
@@ -100,7 +102,8 @@ def on_scan(file, show_all, group_constructs=True):
     try:
         rep = s.load(path, group_constructs=bool(group_constructs))
     except Exception as exc:
-        return (None, f"**Could not read the file:** {exc}", _df(None), _df(None), upd(choices=[], value=[]), _df(None), _df(None))
+        from .diagnose import diagnose, diagnosis_md
+        return (None, diagnosis_md(diagnose(path, exc), with_detail=True), _df(None), _df(None), upd(choices=[], value=[]), _df(None), _df(None))
     md = scan_overview_md(s)
     choices = s.plan_choices(show_all)
     rec = [p["plan_id"] for p in rep.plans if p["recommended"]]

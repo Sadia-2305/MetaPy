@@ -44,7 +44,7 @@ def install():
         return f
 
     for name in ("set_page_config", "title", "header", "subheader", "markdown", "caption", "info", "warning", "error",
-                 "success", "write", "divider", "dataframe", "image"):
+                 "success", "write", "divider", "dataframe", "image", "code"):
         setattr(st, name, _log(name))
 
     def pyplot(fig, **kw):
@@ -71,6 +71,7 @@ def install():
             st.CALLBACKS[key] = kw["on_change"]
 
     def checkbox(label, value=False, key=None, **kw):
+        _reg(key, kw)
         v = _val(key, value)
         if key:
             st.session_state[key] = v

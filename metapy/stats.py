@@ -34,10 +34,9 @@ def tau2_reml(y, v, X=None):
 
     def nll(tau2):
         w = 1 / (v + tau2)
-        W = np.diag(w)
-        XtWX = X.T @ W @ X
+        XtWX = X.T @ (w[:, None] * X)
         try:
-            beta = np.linalg.solve(XtWX, X.T @ W @ y)
+            beta = np.linalg.solve(XtWX, X.T @ (w * y))
         except np.linalg.LinAlgError:
             return 1e10
         r = y - X @ beta

@@ -198,11 +198,32 @@ def baujat(y, v, labels) -> pd.DataFrame:
 
 
 # ------------------------------------------------------------------ multiple meta-regression with permutation test
+def _mr_stats(y, v, X, tau_method, knha):
+    """QM and coefficient test statistics of a mixed-effects meta-regression (numpy only; used for permutations)."""
+    k, p = X.shape
+    tau2 = stats.estimate_tau2(y, v, tau_method, X)
+    w = 1 / (v + tau2)
+    XtWX = X.T @ (w[:, None] * X)
+    cov = np.linalg.inv(XtWX)
+    beta = cov @ (X.T @ (w * y))
+    if knha:
+        r = y - X @ beta
+        cov = cov * max(1.0, float(np.sum(w * r ** 2)) / (k - p))
+    se = np.sqrt(np.diag(cov))
+    b1, c1 = beta[1:], cov[1:, 1:]
+    qm = float(b1 @ np.linalg.solve(c1, b1)) if p > 1 else float("nan")
+    return qm, beta / se
+
+
 def metareg_permutation(df: pd.DataFrame, cols: list[str], n_perm: int = 1000, seed: int = 2024, **kw) -> dict[str, Any]:
+    """Permutation test (Higgins & Thompson 2004): moderator rows are permuted jointly and the model refitted."""
     base = stats.meta_regression(df, cols, **kw)
     if base.get("status") != "Estimated":
         return base
+    X0 = np.asarray(base["X"], float)
     d = df.dropna(subset=cols).reset_index(drop=True)
+    y, v = d["yi"].to_numpy(float), d["vi"].to_numpy(float)
+    tau_method, knha = kw.get("tau_method", "REML"), kw.get("knha", True)
     rng = np.random.default_rng(seed)
     qm0 = base["QM"]
     stat0 = np.abs(base["coefficients"]["statistic"].to_numpy())
@@ -210,16 +231,18 @@ def metareg_permutation(df: pd.DataFrame, cols: list[str], n_perm: int = 1000, s
     ge = np.zeros_like(stat0)
     done = 0
     for _ in range(n_perm):
-        perm = d.copy()
         order = rng.permutation(len(d))
-        for c in cols:
-            perm[c] = d[c].to_numpy()[order]
-        r = stats.meta_regression(perm, cols, **kw)
-        if r.get("status") != "Estimated":
+        Xp = X0.copy()
+        Xp[:, 1:] = X0[order, 1:]
+        if np.linalg.matrix_rank(Xp) < Xp.shape[1]:
+            continue
+        try:
+            qm, st = _mr_stats(y, v, Xp, tau_method, knha)
+        except np.linalg.LinAlgError:
             continue
         done += 1
-        ge_qm += r["QM"] >= qm0 - 1e-12
-        ge += np.abs(r["coefficients"]["statistic"].to_numpy()) >= stat0 - 1e-12
+        ge_qm += qm >= qm0 - 1e-12
+        ge += np.abs(st) >= stat0 - 1e-12
     base["permutation"] = {"n": done, "QM_p": (ge_qm + 1) / (done + 1),
                            "coef_p": ((ge + 1) / (done + 1)).tolist()}
     base["coefficients"] = base["coefficients"].assign(p_permutation=base["permutation"]["coef_p"])

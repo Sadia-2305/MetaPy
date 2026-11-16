@@ -101,7 +101,8 @@ def metapy_side() -> dict:
                 "TE_random": [re_.effect(t_, "A")[0] for t_ in tr], "se_random": [re_.effect(t_, "A")[1] for t_ in tr],
                 "tau2": re_.tau2, "Q": fe.Q.get("Q_total"), "Q_heterogeneity": fe.Q.get("Q_heterogeneity"), "Q_inconsistency": fe.Q.get("Q_inconsistency")}
     bz = AD.bayes_re(y, v, tau_prior_scale=0.5, mu_prior_sd=10.0)
-    m["bayes"] = {"mu_median": bz["mu_median"], "mu_lo": bz["mu_lo"], "mu_hi": bz["mu_hi"], "tau_median": bz["tau_median"]}
+    # bayesmeta reports the shortest 95% interval, so the shortest MetaPy interval is compared
+    m["bayes"] = {"mu_median": bz["mu_median"], "mu_lo": bz["mu_lo_shortest"], "mu_hi": bz["mu_hi_shortest"], "tau_median": bz["tau_median"]}
     return m
 
 
@@ -120,6 +121,9 @@ def compare(mp: dict, r: dict) -> pd.DataFrame:
     fm, fr = {}, {}
     _flat("", mp, fm)
     _flat("", {k: v for k, v in r.items() if k != "versions"}, fr)
+    for k in list(fr):                      # R returns length-1 vectors as scalars
+        if k not in fm and f"{k}[1]" in fm and f"{k}[2]" not in fm:
+            fm[k] = fm.pop(f"{k}[1]")
     rows = []
     for k in sorted(set(fm) & set(fr)):
         a, b = fm[k], fr[k]

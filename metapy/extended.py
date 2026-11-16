@@ -422,7 +422,7 @@ def influence_full(y, v, labels=None, method="REML") -> pd.DataFrame:
         covr = vbi / vb
         w0 = 1 / v[m]
         qe_del = float(np.sum((y[m] - np.sum(w0 * y[m]) / np.sum(w0)) ** 2 * w0))
-        dfbs = (b - bi) / math.sqrt(vbi)
+        dfbs = (b - bi) / math.sqrt(1 / np.sum(1 / (v + t2i)))   # all k studies, leave-one-out tau^2 (as in metafor)
         rows.append({"study": labels[i], "rstudent": rstud, "dffits": dffits, "cook_d": cook, "cov_r": covr,
                      "tau2_del": t2i, "QE_del": qe_del, "hat": hat[i], "weight_pct": 100 * hat[i], "dfbetas": dfbs})
     df = pd.DataFrame(rows)
@@ -439,7 +439,7 @@ def influence_full(y, v, labels=None, method="REML") -> pd.DataFrame:
 
 
 # ======================================================================= test of excess significance
-def tes(y, v, theta: float | None = None, alpha=0.05, test: str = "chi2") -> dict[str, Any]:
+def tes(y, v, theta: float | None = None, alpha=0.05, test: str = "exact") -> dict[str, Any]:
     """Test of excess significance (Ioannidis & Trikalinos 2007).
 
     O = number of studies significant (two-sided p < alpha); E = sum of their power to detect theta (default: the
@@ -457,7 +457,12 @@ def tes(y, v, theta: float | None = None, alpha=0.05, test: str = "chi2") -> dic
     power = norm.sf(zc - theta / sei) + norm.cdf(-zc - theta / sei)
     E = float(np.sum(power))
     out = {"k": k, "theta": theta, "O": O, "E": E, "OE_ratio": O / E if E > 0 else float("nan"), "power": power.tolist()}
-    if test == "binom":
+    if test == "exact":                      # Poisson-binomial distribution of O (default, as in metafor)
+        dist = np.array([1.0])
+        for pw in power:
+            dist = np.convolve(dist, [1 - pw, pw])
+        out.update({"test": "exact (Poisson-binomial)", "p": float(dist[O:].sum())})
+    elif test == "binom":
         pm = E / k
         out.update({"test": "binomial", "p": float(binom.sf(O - 1, k, pm))})
     else:

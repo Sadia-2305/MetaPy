@@ -318,10 +318,10 @@ def trim_and_fill(y, v, model="random", tau_method="REML", ci_method="HK", side:
     for _ in range(max_iter):
         order = np.argsort(ys)
         trimmed = order[: k - k0] if k0 > 0 else order
-        r = pool(ys[trimmed], v[trimmed], "fixed")
+        r = pool(ys[trimmed], v[trimmed], model, tau_method, "Wald")   # same model as the analysis (as in metafor)
         mu = r["estimate"]
         dev = ys - mu
-        ranks = pd.Series(np.abs(dev)).rank().to_numpy()
+        ranks = pd.Series(np.abs(dev)).rank(method="first").to_numpy()
         tn = float(np.sum(ranks[dev > 0]))
         new_k0 = max(0, int(round((4 * tn - k * (k + 1)) / (2 * k - 1))))
         if new_k0 == k0:

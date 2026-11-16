@@ -230,32 +230,23 @@ def _sqrtm_psd(M, inverse=False):
 
 
 def robust(fit_: MetaRegFit, cluster: Sequence[Any]) -> pd.DataFrame:
-    """CR2 cluster-robust standard errors with Satterthwaite df under the fitted working weights 1/(v + tau^2)."""
+    """CR2 cluster-robust standard errors with Satterthwaite df under the fitted working weights 1/(v + tau^2)
+    (Pustejovsky & Tipton 2018; identical to clubSandwich)."""
+    from .dependent import cr2_core
     X, y = fit_.X, fit_.y
     w = 1 / (fit_.v + fit_.tau2)
-    cl = pd.Series(list(cluster)).astype(str)
-    groups = [np.where(cl.to_numpy() == g)[0] for g in pd.unique(cl)]
-    sw = np.sqrt(w)
-    Xt, yt = X * sw[:, None], y * sw
-    N, p = X.shape
-    B = np.linalg.inv(Xt.T @ Xt)
-    beta = B @ Xt.T @ yt
-    M = np.eye(N) - Xt @ B @ Xt.T
-    et = M @ yt
-    A = [_sqrtm_psd(M[np.ix_(ix, ix)], inverse=True) for ix in groups]
-    meat = np.zeros((p, p))
-    for Aj, ix in zip(A, groups):
-        u = Xt[ix].T @ Aj @ et[ix]
-        meat += np.outer(u, u)
-    V = B @ meat @ B
+    cl = pd.Series(list(cluster)).astype(str).to_numpy()
+    groups = [np.where(cl == g)[0] for g in pd.unique(cl)]
+    Wb = [np.diag(w[ix]) for ix in groups]
+    beta = np.linalg.solve(X.T @ (w[:, None] * X), X.T @ (w * y))
+    V, dff = cr2_core(X, y, Wb, groups, beta)
     se = np.sqrt(np.diag(V))
+    p = X.shape[1]
     rows = []
     for ci in range(p):
         c = np.zeros(p)
         c[ci] = 1.0
-        avecs = [M[ix, :].T @ (Aj @ Xt[ix] @ B @ c) for Aj, ix in zip(A, groups)]
-        G = np.array([[a1 @ a2 for a2 in avecs] for a1 in avecs])
-        df = float(np.trace(G) ** 2 / np.sum(G ** 2)) if np.sum(G ** 2) > 0 else float("nan")
+        df = dff(c)
         tval = beta[ci] / se[ci]
         crit = tdist.ppf(0.975, df)
         rows.append({"term": fit_.names[ci], "estimate": beta[ci], "se (CR2)": se[ci], "df (Satterthwaite)": df, "t": tval,

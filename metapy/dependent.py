@@ -187,46 +187,58 @@ def _sqrtm_psd(M: np.ndarray, inverse: bool = False) -> np.ndarray:
     return (U * (w ** (-0.5 if inverse else 0.5))) @ U.T
 
 
-def robust_cr2(fit: DepFit) -> pd.DataFrame:
-    """CR2 cluster-robust variance with Satterthwaite df, under the fitted working model.
+def cr2_core(X: np.ndarray, y: np.ndarray, W_blocks: list[np.ndarray], idx: list[np.ndarray], beta: np.ndarray):
+    """CR2 cluster-robust variance and Satterthwaite df, exactly as in Pustejovsky & Tipton (2018) and clubSandwich.
 
-    The data are whitened with the working covariance (W_j^{1/2}), turning the problem into OLS
-    with identity working covariance, where the Bell-McCaffrey / CR2 adjustment is
-    A_j = (I - H_jj)^{-1/2}. df for coefficient c: (tr Q)^2 / tr(Q^2), Q = sum_j a_j a_j',
-    a_j = (I - H)[j, :]' A_j Xt_j B c  (Pustejovsky & Tipton 2018)."""
-    e = fit.extra
-    X, y, idx, Winv, beta = e["X"], e["y"], e["idx"], e["Winv"], e["beta"]
+    Working weights W_j = Phi_j^{-1}; adjustment A_j = D_j' B_j^{-1/2} D_j with D_j the upper Cholesky factor of Phi_j
+    and B_j = D_j [(I - H) Phi (I - H)']_jj D_j'. For contrast c, df = (tr G)^2 / sum(G^2) with G_ij = q_i' Phi q_j,
+    q_j = (I - H)_j' A_j' W_j X_j M c (Satterthwaite approximation under the working model).
+    Returns (V_R, list of q-builders) via a function computing df for any contrast.
+    """
     N, p = X.shape
-    # whiten each cluster
-    Xt = np.zeros_like(X)
-    yt = np.zeros_like(y)
-    for Vi, ix in zip(Winv, idx):
-        R = _sqrtm_psd(Vi)
-        Xt[ix] = R @ X[ix]
-        yt[ix] = R @ y[ix]
-    B = np.linalg.inv(Xt.T @ Xt)
-    H = Xt @ B @ Xt.T
-    M = np.eye(N) - H
-    et = M @ yt
-    A = [_sqrtm_psd(M[np.ix_(ix, ix)], inverse=True) for ix in idx]
+    W = np.zeros((N, N))
+    Phi = np.zeros((N, N))
+    Phis = []
+    for Wj, ix in zip(W_blocks, idx):
+        Pj = np.linalg.inv(Wj)
+        W[np.ix_(ix, ix)] = Wj
+        Phi[np.ix_(ix, ix)] = Pj
+        Phis.append(Pj)
+    M = np.linalg.inv(X.T @ W @ X)
+    IH = np.eye(N) - X @ M @ X.T @ W
+    e = y - X @ beta
+    A = []
+    for Pj, ix in zip(Phis, idx):
+        Dj = np.linalg.cholesky((Pj + Pj.T) / 2).T
+        Bj = Dj @ (IH[ix, :] @ Phi @ IH[ix, :].T) @ Dj.T
+        A.append(Dj.T @ _sqrtm_psd(Bj, inverse=True) @ Dj)
     meat = np.zeros((p, p))
-    for Aj, ix in zip(A, idx):
-        u = Xt[ix].T @ Aj @ et[ix]
+    for Aj, Wj, ix in zip(A, W_blocks, idx):
+        u = X[ix].T @ Wj @ Aj @ e[ix]
         meat += np.outer(u, u)
-    V = B @ meat @ B
+    V = M @ meat @ M
+
+    def df(c):
+        qs = [IH[ix, :].T @ (Aj.T @ (Wj @ (X[ix] @ (M @ c)))) for Aj, Wj, ix in zip(A, W_blocks, idx)]
+        Q = np.column_stack(qs)
+        G = Q.T @ Phi @ Q
+        s2 = float(np.sum(G ** 2))
+        return float(np.trace(G) ** 2 / s2) if s2 > 0 else float("nan")
+    return V, df
+
+
+def robust_cr2(fit: DepFit) -> pd.DataFrame:
+    """CR2 cluster-robust variance with Satterthwaite df under the fitted working model (Pustejovsky & Tipton 2018)."""
+    e = fit.extra
+    X, y, idx, Wb, beta = e["X"], e["y"], e["idx"], e["Winv"], e["beta"]
+    p = X.shape[1]
+    V, dff = cr2_core(X, y, Wb, idx, beta)
     se = np.sqrt(np.diag(V))
     rows = []
     for c_i in range(p):
         c = np.zeros(p)
         c[c_i] = 1.0
-        avecs = []
-        for Aj, ix in zip(A, idx):
-            g = Aj @ Xt[ix] @ B @ c
-            avecs.append(M[ix, :].T @ g)
-        G = np.array([[a1 @ a2 for a2 in avecs] for a1 in avecs])
-        trQ = np.trace(G)
-        trQ2 = np.sum(G ** 2)
-        df = trQ ** 2 / trQ2 if trQ2 > 0 else float("nan")
+        df = dff(c)
         tval = beta[c_i] / se[c_i]
         crit = tdist.ppf(0.975, df)
         rows.append({"term": e["names"][c_i], "estimate": beta[c_i], "se (CR2)": se[c_i], "df (Satterthwaite)": df,

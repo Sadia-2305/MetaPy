@@ -278,20 +278,24 @@ def bayes_re(y, v, tau_prior_scale: float = 0.5, mu_prior_sd: float = 10.0, mu_p
     cdf_tau = np.concatenate([[0], np.cumsum((wts[1:] + wts[:-1]) / 2 * np.diff(taus))])
     cdf_tau /= cdf_tau[-1]
     q = lambda c, p_: float(np.interp(p_, c, taus))
-    pt = wts * np.gradient(taus)
+    h = np.diff(taus)
+    pt = wts * np.concatenate([[h[0] / 2], (h[:-1] + h[1:]) / 2, [h[-1] / 2]])    # trapezoid weights
     pt /= pt.sum()
-    grid_mu = np.linspace(min(means - 6 * sds), max(means + 6 * sds), 3000)
-    dens = np.sum(pt[:, None] * norm.pdf(grid_mu[None, :], means[:, None], sds[:, None]), axis=0)
-    cdf_mu = np.cumsum(dens)
-    cdf_mu /= cdf_mu[-1]
-    qm = lambda p_: float(np.interp(p_, cdf_mu, grid_mu))
+    # p(mu | y) and the predictive distribution are mixtures of normals over the tau grid: invert their CDFs exactly
+    def mix_q(p_, sd_):
+        f = lambda x: float(np.sum(pt * norm.cdf(x, means, sd_))) - p_
+        lo, hi = float(np.min(means - 10 * sd_)), float(np.max(means + 10 * sd_))
+        return float(brentq(f, lo, hi, xtol=1e-12))
+    qm = lambda p_: mix_q(p_, sds)
+    # shortest 95% interval (as reported by bayesmeta), in addition to the equal-tailed one
+    from scipy.optimize import minimize_scalar as _msc
+    _w = _msc(lambda a_: qm(a_ + 0.95) - qm(a_), bounds=(1e-6, 0.05 - 1e-6), method="bounded", options={"xatol": 1e-8})
+    short_lo, short_hi = qm(float(_w.x)), qm(float(_w.x) + 0.95)
     post_mean = float(np.sum(pt * means))
-    # predictive distribution of a new study's true effect: mixture of N(mean, sd^2 + tau^2)
-    pdens = np.sum(pt[:, None] * norm.pdf(grid_mu[None, :], means[:, None], np.sqrt(sds ** 2 + taus ** 2)[:, None]), axis=0)
-    pcdf = np.cumsum(pdens)
-    pcdf /= pcdf[-1]
+    psd = np.sqrt(sds ** 2 + taus ** 2)
     return {"mu_mean": post_mean, "mu_median": qm(0.5), "mu_lo": qm(0.025), "mu_hi": qm(0.975),
+            "mu_lo_shortest": short_lo, "mu_hi_shortest": short_hi,
             "P(mu > 0)": float(np.sum(pt * norm.sf(0, means, sds))),
             "tau_median": q(cdf_tau, 0.5), "tau_lo": q(cdf_tau, 0.025), "tau_hi": q(cdf_tau, 0.975),
-            "pred_lo": float(np.interp(0.025, pcdf, grid_mu)), "pred_hi": float(np.interp(0.975, pcdf, grid_mu)),
+            "pred_lo": mix_q(0.025, psd), "pred_hi": mix_q(0.975, psd),
             "priors": f"mu ~ N({mu_prior_mean}, {mu_prior_sd}^2); tau ~ half-normal(scale {tau_prior_scale})"}

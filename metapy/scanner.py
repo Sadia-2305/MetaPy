@@ -276,7 +276,20 @@ def extra_analyses_for(chars: pd.DataFrame, overview: dict[str, Any], records: p
                                                           or (c["type"] == "categorical" and records["study_id"].nunique() >= 6)):
             out.append({"key": f"metareg::{c['characteristic']}", "label": f"Meta-regression on {c['characteristic']}", "needs": "10+ studies recommended"})
     mods = [o_["key"].split("::", 1)[1] for o_ in out if o_["key"].startswith("metareg::")]
+    ctype = dict(zip(chars["characteristic"], chars["type"])) if len(chars) else {}
+    numeric_first = sorted(mods, key=lambda m_: (ctype.get(m_) != "numeric", m_.lower() == "year"))
     if mods:
+        mods_n = numeric_first
+        cat = [m_ for m_ in mods_n if ctype.get(m_) == "categorical"]
+        if records is not None:                     # fewest categories first (simplest interaction)
+            nlev = lambda m_: records[f"char::{m_}" if f"char::{m_}" in records else m_].nunique() if (f"char::{m_}" in records or m_ in records) else 99
+            cat = sorted(cat, key=nlev)
+        pair = [mods_n[0]] + ([c for c in cat if c != mods_n[0]][:1] or [m_ for m_ in mods_n[1:2]])
+        out.append({"key": "metareg_adv::" + "|".join(pair), "label": f"Meta-regression on {' × '.join(pair)}"
+                    + (" with interaction" if len(pair) >= 2 else "") + ", predictions and robust (CR2) inference", "needs": "10+ studies"})
+        out.append({"key": f"location_scale::{mods_n[0]}", "label": f"Location-scale model: does heterogeneity depend on {mods_n[0]}?",
+                    "needs": "10+ studies"})
+    if False:
         out.append({"key": "metareg_adv::" + "|".join(mods[:2]), "label": f"Meta-regression on {' × '.join(mods[:2])}"
                     + (" with interaction" if len(mods) >= 2 else "") + ", predictions and robust (CR2) inference", "needs": "10+ studies"})
         out.append({"key": f"location_scale::{mods[0]}", "label": f"Location-scale model: does heterogeneity depend on {mods[0]}?",

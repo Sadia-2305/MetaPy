@@ -167,6 +167,24 @@ def install():
         setattr(st, f.__name__, _logged(f))
     for f in (expander, popover, spinner, tabs, columns, rerun):
         setattr(st, f.__name__, f)
+    def dialog(title, **kw):
+        def deco(f):
+            def w(*a, **k):
+                st.LOG.append(("dialog", title))
+                return f(*a, **k)
+            return w
+        return deco
+    st.dialog = dialog
+
+    def feedback(kind="thumbs", key=None, **kw):
+        st.LOG.append(("widget", f"feedback:{kind}"))
+        return _val(key, None)
+    st.feedback = feedback
+
+    def cache_data(func=None, **kw):
+        return func if callable(func) else (lambda f: f)
+    st.cache_data = cache_data
+
     cc = types.SimpleNamespace(SelectboxColumn=lambda *a, **kw: None)
     st.column_config = cc
     sys.modules["streamlit"] = st

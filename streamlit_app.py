@@ -32,11 +32,13 @@ from metapy.fields import label as field_label  # noqa: E402
 from metapy.figures import PRISMA_BOXES, PRISMA_OTHER_BOXES, forest_plot, funnel_plot  # noqa: E402
 from metapy.report import FIGURE_CHOICES, TABLE_CHOICES, TEXT_CHOICES  # noqa: E402
 from metapy.session import MetaPySession  # noqa: E402
+from metapy import feedback as FB, guide as GD  # noqa: E402
 
 st.set_page_config(page_title="MetaPy: transparent meta-analysis", page_icon="📊", layout="wide")
 ss = st.session_state
 for _k, _v in (("s", None), ("gen", 0), ("tmpdir", None), ("flash", {}), ("nma_src", None), ("nma_last", None), ("exports", []),
-               ("src_path", None), ("load_error", None), ("groups", []), ("group_cb", True)):
+               ("src_path", None), ("load_error", None), ("groups", []), ("group_cb", True),
+               ("fb_pending", False), ("fb_done", False), ("fb_open", False), ("fb_msg", None), ("mode", "Beginner (recommended)")):
     if _k not in ss:
         ss[_k] = _v
 
@@ -131,11 +133,75 @@ if s is not None and s.ds is not None:
     st.markdown(f"**Data file:** `{s.ds.source_name}` · fingerprint `{s.ds.fingerprint[:12]}` · "
                 f"{len(s.plans)} plan(s) selected · {len(approved_ids(s))} approved · {len(s.results)} analysed")
 
+h1, h2, h3 = st.columns([2, 1, 1])
+with h1:
+    st.radio("Mode", ["Beginner (recommended)", "Advanced"], key="mode", horizontal=True,
+             help="Beginner mode shows only the recommended choices, explains each one, and adds a plain-language summary. "
+                  "Advanced mode shows every option.")
+BEGINNER = ss.mode.startswith("Beginner")
+
+
+@st.cache_data(show_spinner=False)
+def _template_bytes(version: str) -> bytes:
+    d = tempfile.mkdtemp(prefix="metapy_tpl_")
+    try:
+        return GD.make_template(Path(d) / "MetaPy_data_template.xlsx").read_bytes()
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+with h2:
+    st.download_button("⬇ Excel data template", data=_template_bytes(__version__), file_name="MetaPy_data_template.xlsx",
+                       mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key="dl_template",
+                       help="An Excel file with instructions and example rows. Fill it in with your studies and upload it in step 1.")
+with h3:
+    if st.button("⭐ Give feedback", key="btn_feedback"):
+        ss.fb_open = True
+if ss.fb_msg:
+    st.success(ss.fb_msg)
+    ss.fb_msg = None
+
+
+def _feedback_body():
+    st.markdown("Your report is ready. **How useful was MetaPy for you?** Your answer helps improve it for other researchers.")
+    stars = st.feedback("stars", key="fb_stars")
+    comment = st.text_area("Anything we could do better? (optional)", key="fb_comment", max_chars=2000)
+    role = st.selectbox("You are… (optional)", FB.ROLES, key="fb_role")
+    st.caption("Only your rating, comment and role are sent — never your data or results.")
+    b1, b2 = st.columns(2)
+    with b1:
+        if st.button("Send feedback", type="primary", key="btn_fb_send"):
+            if stars is None:
+                st.warning("Please choose a number of stars first.")
+            else:
+                ok, msg = FB.send(int(stars) + 1, comment, role)
+                ss.fb_done, ss.fb_open, ss.fb_pending, ss.fb_msg = True, False, False, msg
+                st.rerun()
+    with b2:
+        if st.button("Not now", key="btn_fb_skip"):
+            ss.fb_done, ss.fb_open, ss.fb_pending = True, False, False
+            st.rerun()
+
+
+feedback_dialog = st.dialog("How was MetaPy?")(_feedback_body) if hasattr(st, "dialog") else _feedback_body
+
 tabs = st.tabs(["1 · Upload & choose", "2 · Prepare data", "3 · Analyse & review", "4 · Tables & figures", "5 · Export"])
 
 # ================================================================== 1 upload
 with tabs[0]:
     show_flash("1")
+    if BEGINNER:
+        with st.expander("New to meta-analysis? Start here", expanded=s is None):
+            st.markdown(
+                "1. **Prepare your data** in Excel: one row per study comparison. Download the **Excel data template** (button above) "
+                "for instructions and examples.\n"
+                "2. **Upload the file** below. MetaPy finds which analyses are possible and ticks the recommended ones.\n"
+                "3. **Prepare data** (step 2): answer the few questions MetaPy asks and approve.\n"
+                "4. **Analyse** (step 3): the recommended settings are already chosen; read the plain-language summary.\n"
+                "5. **Export** (step 5): download your report (Word, Excel, PDF or HTML).\n\n"
+                "Good practice: plan your review and register a protocol first, follow the "
+                "[Cochrane Handbook](https://training.cochrane.org/handbook) and report with [PRISMA 2020](https://www.prisma-statement.org). "
+                "For complex questions, ask a statistician.")
     up = st.file_uploader("Data file (.csv, .tsv, .xlsx, .xlsm)", type=["csv", "tsv", "txt", "xlsx", "xlsm", "xls"], key="uploader")
     if st.button("Read file and find possible analyses", type="primary", key="btn_read", disabled=up is None):
         with st.spinner("Reading the file…"):
@@ -343,10 +409,20 @@ with tabs[2]:
     else:
         c1, c2, c3 = st.columns(3)
         with c1:
-            model = st.radio("Model", ["Random effects", "Fixed effect"], key=K("model"))
-        with c2:
+            model = st.radio("Model", ["Random effects", "Fixed effect"], key=K("model"),
+                             captions=[GD.EXPLAIN["random"], GD.EXPLAIN["fixed"]] if BEGINNER else None)
+        if BEGINNER:
+            tau, ci = "REML (recommended)", "Hartung-Knapp (recommended)"
+            with c2:
+                st.markdown("**Recommended settings**")
+                st.caption("τ² estimator: REML. " + GD.EXPLAIN["REML"])
+            with c3:
+                st.markdown("&nbsp;")
+                st.caption("Confidence interval: Hartung-Knapp. " + GD.EXPLAIN["HK"] + " Switch to Advanced mode to change these.")
+        else:
+          with c2:
             tau = st.radio("τ² estimator", ["REML (recommended)", "DL (DerSimonian-Laird)", "PM (Paule-Mandel)", "ML (maximum likelihood)", "EB (empirical Bayes)", "SJ (Sidik-Jonkman)", "HE (Hedges)", "HS (Hunter-Schmidt)", "HSk (Hunter-Schmidt, small-sample)"], key=K("tau"))
-        with c3:
+          with c3:
             ci = st.radio("Confidence interval", ["Hartung-Knapp (recommended)", "Wald (normal)"], key=K("ci"))
         opts = {"model": "random" if model.startswith("Random") else "fixed", "tau_method": tau.split()[0],
                 "ci_method": "HK" if ci.startswith("Hartung") else "Wald"}
@@ -355,9 +431,11 @@ with tabs[2]:
                                 key=K(f"analyse_group_{appr_sig}"))
         unapproved = [x for x in ticked if not s.approved.get(x)]
         confirm3 = st.checkbox("I approve the preparation of the ticked plans that are not yet approved", key=K("confirm3")) if unapproved else False
-        extra = {a["key"]: f"{a['label']}  (needs {a['needs']})" for a in s.extra_choices()}
+        extra = {a["key"]: f"{a['label']}  (needs {a['needs']})" for a in s.extra_choices()
+                 if not BEGINNER or a["key"].startswith(GD.BEGINNER_EXTRAS)}
         extras = st.multiselect("Additional analyses (optional; you can add more after seeing the results)", list(extra),
-                                format_func=lambda k: extra[k], key=K(f"extras_{len(extra)}"))
+                                format_func=lambda k: extra[k], key=K(f"extras_{len(extra)}_{int(BEGINNER)}"),
+                                help=GD.EXPLAIN["extras"] if BEGINNER else None)
         if st.button("Run analysis", type="primary", key=K("btn_run"), disabled=not ticked):
             if unapproved and not confirm3:
                 flash("3", "warning", "These ticked plans are not approved yet: " + ", ".join(s.plans[x]["outcome"] for x in unapproved) +
@@ -379,6 +457,10 @@ with tabs[2]:
         if s.results:
             st.divider()
             pick = st.selectbox("Show details and plots for", list(s.results), format_func=lambda x: plan_label(s, x), key=K("res_pick"))
+            _r = s.results[pick]
+            st.info("**What this means**\n\n" + "\n\n".join("• " + t for t in GD.interpret(_r)))
+            for _w in GD.warnings_for(_r):
+                st.warning("⚠️ " + _w)
             st.markdown(results_md(s, pick))
             table(pd.concat([summary_table(r) for r in s.results.values()], ignore_index=True))
             r = s.results[pick]
@@ -394,7 +476,7 @@ with tabs[2]:
             decision = st.radio("Are these results OK?", ["Yes, the results are OK; accept them", "Add more analyses (tick them below)",
                                                           "Change model settings (set them above)", "Go back and change data preparation"],
                                 key=K("decision"))
-            more = st.multiselect("More analyses", list(extra), format_func=lambda k: extra[k], key=K(f"more_{len(extra)}"))
+            more = st.multiselect("More analyses", list(extra), format_func=lambda k: extra[k], key=K(f"more_{len(extra)}_{int(BEGINNER)}"))
             if st.button("Continue", type="primary", key=K("btn_review")):
                 if decision.startswith("Yes"):
                     s.accept()
@@ -553,6 +635,8 @@ with tabs[4]:
                 ss.exports = [(Path(p).name, Path(p).read_bytes()) for p in paths]
                 note = "" if s.accepted else " Note: you have not accepted the results in step 3 yet."
                 flash("5", "success", f"Exported {len(paths)} file(s). Download them below.{note}")
+                if not ss.fb_done:
+                    ss.fb_pending = True
             except Exception as exc:
                 ss.exports = []
                 flash("5", "error", f"Export failed: {exc}")
@@ -562,3 +646,7 @@ with tabs[4]:
         for i, (name, data) in enumerate(ss.exports):
             st.download_button(f"⬇ Download {name}", data=data, file_name=name,
                                mime=mimetypes.guess_type(name)[0] or "application/octet-stream", key=K(f"dl_{i}"))
+
+# feedback pop-up: once after the first export, or whenever the user clicks "Give feedback"
+if ss.fb_open or (ss.fb_pending and not ss.fb_done):
+    feedback_dialog()

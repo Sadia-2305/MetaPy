@@ -37,7 +37,8 @@ FIGURE_CHOICES = {
     "network": "Network graph and forest plot (network meta-analysis)",
     "radial": "Radial (Galbraith) plot", "labbe": "L'Abbé plot (binary outcomes with event counts)",
 }
-TEXT_CHOICES = {"methods": "Auto-written methods paragraph (with citations)", "results": "Auto-written results paragraph"}
+TEXT_CHOICES = {"methods": "Auto-written methods paragraph (with citations)", "results": "Auto-written results paragraph",
+                "plain": "Plain-language summary and cautions (for readers new to meta-analysis)"}
 
 
 @dataclass
@@ -382,7 +383,8 @@ def build_report(results: list[AnalysisResult], ds: Dataset, tables: list[str], 
     if foreign:
         raise ValueError("Results for " + ", ".join(foreign) + " were not produced from the current data file. "
                          "Re-run the analysis for this file; results from another file are never mixed in.")
-    meta = {"MetaPy version": __version__, "Source file": ds.source_name,
+    from .guide import CITATION
+    meta = {"MetaPy version": __version__, "How to cite MetaPy": CITATION, "Source file": ds.source_name,
             "Data file fingerprint (SHA-256, first 16)": ds.fingerprint[:16] or "n/a",
             "Studies in data file": int(ds.records["study_id"].nunique()), "Source file modified": "No",
             "Analyses": "; ".join(f"{r.prep.plan['outcome']} — {r.measure.label}" for r in results)}
@@ -394,6 +396,16 @@ def build_report(results: list[AnalysisResult], ds: Dataset, tables: list[str], 
         secs.append(Section("Methods", text=methods_text(results)))
     if "results" in texts:
         secs.append(Section("Results summary", text=results_text(results)))
+    if "plain" in texts:
+        from . import guide as GD
+        txt = []
+        for r in results:
+            txt.append(f"{r.prep.plan['outcome']} ({r.measure.label}):")
+            txt.extend(GD.interpret(r))
+            txt.extend("Caution: " + w for w in GD.warnings_for(r))
+        txt.append("These sentences describe the numbers only. Judge the certainty of the evidence (for example with GRADE), "
+                   "the risk of bias of the included studies and the practical importance of the effect before drawing conclusions.")
+        secs.append(Section("Plain-language summary", text=txt))
     if "sof" in tables:
         secs.append(Section("Summary of findings", tables=[("Summary of findings table", sof_table(results))],
                             text=["GRADE judgements are left blank for the review team to complete."]))

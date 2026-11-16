@@ -112,6 +112,9 @@ def read_tables(path: str | Path) -> dict[str, pd.DataFrame]:
         body = df.iloc[hdr + 1:].copy()
         body.columns = _dedupe(cols)
         body = body.dropna(how="all")
+        # instruction / README sheets (no recognisable data column, or an instruction-like name) are not data
+        if INSTRUCTION_SHEET.search(str(name)) or not any(match_column(c) for c in cols):
+            continue
         if not body.empty:
             tables[str(name)] = body.reset_index(drop=True)
     if not tables:
@@ -143,6 +146,7 @@ def _detect_header(df: pd.DataFrame) -> int:
     return best
 
 
+INSTRUCTION_SHEET = re.compile(r"^\s*(read\s*me|instructions?|how to|help|guide|about|notes?|codebook|dictionary)\b", re.I)
 GENERIC_SHEET = re.compile(r"^(sheet|tabelle|feuil|hoja|data|table|blad)\s*\d*$", re.I)
 
 

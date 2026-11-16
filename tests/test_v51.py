@@ -128,3 +128,22 @@ def test_tes_and_influence_run():
     inf = E.influence_full(d.yi.values, d.vi.values, d.Study)
     assert list(inf.columns[:5]) == ["study", "rstudent", "dffits", "cook_d", "cov_r"]
     assert abs(inf["hat"].sum() - 1) < 1e-9
+
+
+def test_template_is_readable_and_interpretation_is_cautious():
+    import tempfile
+    from metapy import guide as GD
+    from metapy.session import MetaPySession
+    d = tempfile.mkdtemp()
+    path = GD.make_template(Path(d) / "t.xlsx")
+    s = MetaPySession()
+    s.load(str(path))
+    pids = [p["plan_id"] for p in s.scan_report.plans if p["recommended"]]
+    assert len(pids) == 2                                   # instructions sheet ignored; two example outcomes found
+    s.select_plans(pids)
+    s.approve_many(pids)
+    res = s.analyse({"model": "random", "tau_method": "REML", "ci_method": "HK", "extras": []})
+    for r in res.values():
+        text = " ".join(GD.interpret(r)).lower()
+        assert "works" not in text and "proves" not in text
+        assert any("studies" in w for w in GD.warnings_for(r))   # few studies: always warned

@@ -63,9 +63,18 @@ class TestStreamlitSite(unittest.TestCase):
         self.assertIn("studies", ss[K("p_box_included")])
         ss[K("fmts")] = ["docx", "xlsx"]
         go(K("btn_export"))
-        names = [n for n, _ in st.DOWNLOADS]
-        self.assertEqual(sorted(names), ["MetaPy_report.docx", "MetaPy_report.xlsx"])
-        self.assertTrue(all(len(b) > 1000 for _, b in st.DOWNLOADS))
+        reports = [(n, b) for n, b in st.DOWNLOADS if n.startswith("MetaPy_report")]
+        self.assertEqual(sorted(n for n, _ in reports), ["MetaPy_report.docx", "MetaPy_report.xlsx"])
+        self.assertTrue(all(len(b) > 1000 for _, b in reports))
+        self.assertIn(("dialog", "How was MetaPy?"), st.LOG)                      # feedback pop-up after the first export
+        self.assertTrue(any(n == "MetaPy_data_template.xlsx" for n, _ in st.DOWNLOADS))
+        ss["fb_stars"] = 4
+        st.LOG.clear()
+        go("btn_fb_send")                                                         # not configured here: nothing is sent
+        self.assertTrue(ss["fb_done"])
+        st.LOG.clear()
+        go()
+        self.assertNotIn(("dialog", "How was MetaPy?"), st.LOG)                   # asked only once
         old, old_gen = s, ss["gen"]
         go("btn_read")                                        # reading a file again starts a brand-new session
         self.assertIsNot(ss["s"], old)

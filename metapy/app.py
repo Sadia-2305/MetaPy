@@ -23,8 +23,8 @@ from .session import MetaPySession, saved_sessions
 WEB_MODE = os.environ.get("METAPY_WEB", "").lower() in ("1", "true", "yes") or bool(os.environ.get("SPACE_ID"))
 WEB_NOTICE = ("**Online version.** Your file is processed in memory on this server only while you use the page; MetaPy does not "
               "store your data or results here, and nothing is shared with other users. Closing or reloading the page ends your session, "
-              "so export your report before you leave. Use de-identified, aggregate data only. To save and resume work, use the Colab or "
-              "local version.")
+              "so export your report before you leave. Use de-identified, aggregate data only. If you choose to send feedback, only your "
+              "rating and comment are sent (never your data). To save and resume work, use the Colab or local version.")
 
 N_RADIO, N_CHECK = 8, 2
 DEFAULT_TABLES = ["characteristics", "effects", "pooled", "sof", "extras", "derivations", "actions", "requests", "checks", "evidence", "parsing"]

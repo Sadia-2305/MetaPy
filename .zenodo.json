@@ -1,0 +1,22 @@
+{
+  "title": "MetaPy: an open-source Python tool for transparent, provenance-tracked preparation of heterogeneously reported data and meta-analysis",
+  "upload_type": "software",
+  "description": "<p>MetaPy is a free, open-source Python package with a browser interface. It reads a review team's extraction spreadsheet, derives every obtainable effect size by chaining cited formulas (exact formulas first, published approximations and assumptions only when the researcher accepts them), records the formula, inputs and citation of every derived value, and runs pairwise, dependent-effects, network, publication-bias and Bayesian meta-analyses with an auditable report.</p><p>The folder <code>validation/</code> reproduces every number in the accompanying article.</p>",
+  "creators": [
+    {
+      "name": "Nadeem, Sadia",
+      "orcid": "0009-0008-5510-9456"
+    }
+  ],
+  "license": "MIT",
+  "access_right": "open",
+  "version": "5.0.0",
+  "keywords": [
+    "meta-analysis",
+    "effect size",
+    "systematic review",
+    "network meta-analysis",
+    "reproducibility",
+    "Python"
+  ]
+}

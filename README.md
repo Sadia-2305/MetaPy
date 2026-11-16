@@ -1,6 +1,6 @@
 # MetaPy 5.2: transparent meta-analysis for every researcher
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.24267388.svg)](https://doi.org/10.5281/zenodo.24267388)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.24282645.svg)](https://doi.org/10.5281/zenodo.24282645)
 
 🎬 **Video guide (2 min):** https://youtu.be/wqCUJPEgjXQ · 🌐 **Try it online:** https://metapy-23.streamlit.app
 

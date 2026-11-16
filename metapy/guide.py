@@ -21,7 +21,7 @@ from . import __version__
 
 VIDEO = "https://youtu.be/wqCUJPEgjXQ"
 CITATION = (f"Nadeem S. MetaPy: transparent meta-analysis [computer software]. Version {__version__}. Zenodo. "
-            "https://doi.org/10.5281/zenodo.24267388")
+            "https://doi.org/10.5281/zenodo.24282645")
 
 EXPLAIN = {
     "random": "Random effects: assumes the true effect differs somewhat between studies (different people, settings, "

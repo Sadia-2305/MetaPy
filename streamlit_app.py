@@ -124,7 +124,7 @@ s = ss.s
 
 # ------------------------------------------------------------------ page
 st.title("📊 MetaPy")
-st.caption(f"Transparent meta-analysis · version {__version__} · Sadia Nadeem · MIT License")
+st.caption(f"Transparent meta-analysis · version {__version__}")
 st.info(WEB_NOTICE.replace("To save and resume work, use the Colab or local version.",
                            "To save and resume work, use the Colab or local version of MetaPy."))
 if s is not None and s.ds is not None:

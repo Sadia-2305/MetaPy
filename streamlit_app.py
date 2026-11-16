@@ -192,6 +192,7 @@ with tabs[0]:
     show_flash("1")
     if BEGINNER:
         with st.expander("New to meta-analysis? Start here", expanded=s is None):
+            st.markdown("🎬 **Watch the 2-minute video guide:** [https://youtu.be/wqCUJPEgjXQ](https://youtu.be/wqCUJPEgjXQ)")
             st.markdown(
                 "1. **Prepare your data** in Excel: one row per study comparison. Download the **Excel data template** (button above) "
                 "for instructions and examples.\n"

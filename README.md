@@ -2,6 +2,8 @@
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.24267388.svg)](https://doi.org/10.5281/zenodo.24267388)
 
+🎬 **Video guide (2 min):** https://youtu.be/wqCUJPEgjXQ · 🌐 **Try it online:** https://metapy-23.streamlit.app
+
 MetaPy reads your extraction sheet (CSV or Excel). It works out which meta-analyses the data can support, derives any missing statistics itself and shows exactly how, then runs the analysis and builds the report. You make every decision by picking options; there is no free text to type.
 
 ```

@@ -115,6 +115,11 @@ def _forest_core(rows: pd.DataFrame, pooled: list[dict[str, Any]], m, title: str
         if len(ticks) < 3:
             cands = [b * 10.0 ** e for e in range(-4, 5) for b in (1, 1.5, 2, 3, 5, 7)]
             ticks = [math.log(c) for c in cands if lo - pad <= math.log(c) <= hi + pad]
+        span = (hi + pad) - (lo - pad)
+        if span > math.log(10) * 2.5:              # wide range (several decades): powers of ten only, so labels do not overlap
+            ticks = [t for t in ticks if abs(math.exp(t) / 10 ** round(math.log10(math.exp(t))) - 1) < 1e-9] or ticks
+            if span > math.log(10) * 5:            # very wide: every second power of ten, keeping 1
+                ticks = [t for t in ticks if round(math.log10(math.exp(t))) % 2 == 0] or ticks
         ax.set_xticks(ticks)
         ax.set_xticklabels([f"{math.exp(t):g}" for t in ticks])
         ax.set_xlim(lo - pad, hi + pad)

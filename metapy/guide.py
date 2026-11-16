@@ -152,7 +152,7 @@ def interpret(res) -> list[str]:
         word = "lower" if change < 0 else "higher"
         out.append(f"Across {k} studies, the pooled {name} was {_fmt(e)} ({ci_name} {_fmt(l_)} to {_fmt(h_)}). "
                    f"In other words, the odds or risk of the outcome were on average about {abs(change):.0f}% {word} in the "
-                   f"intervention groups ({side.lower()}).")
+                   "intervention groups than in the comparison groups.")
         crosses = l_ <= 1 <= h_
         no_effect = "1 (no difference)"
     else:

@@ -193,6 +193,8 @@ with tabs[0]:
     if BEGINNER:
         with st.expander("New to meta-analysis? Start here", expanded=s is None):
             st.markdown("🎬 **Watch the 2-minute video guide:** [https://youtu.be/wqCUJPEgjXQ](https://youtu.be/wqCUJPEgjXQ)")
+            st.markdown("📄 **Read the article about MetaPy (preprint):** "
+                        "[https://doi.org/10.31222/osf.io/6r24v_v1](https://doi.org/10.31222/osf.io/6r24v_v1)")
             st.markdown(
                 "1. **Prepare your data** in Excel: one row per study comparison. Download the **Excel data template** (button above) "
                 "for instructions and examples.\n"

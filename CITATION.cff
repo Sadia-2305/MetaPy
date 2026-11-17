@@ -16,3 +16,14 @@ keywords:
   - effect size
   - network meta-analysis
   - PRISMA
+preferred-citation:
+  type: article
+  title: "MetaPy: an open-source Python tool for transparent, provenance-tracked preparation of heterogeneously reported data and meta-analysis"
+  authors:
+    - family-names: Nadeem
+      given-names: Sadia
+      orcid: "https://orcid.org/0009-0008-5510-9456"
+  journal: "MetaArXiv"
+  year: 2026
+  doi: "10.31222/osf.io/6r24v_v1"
+  url: "https://doi.org/10.31222/osf.io/6r24v_v1"

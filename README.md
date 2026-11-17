@@ -1,6 +1,6 @@
 # MetaPy 5.2: transparent meta-analysis for every researcher
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.24282645.svg)](https://doi.org/10.5281/zenodo.24282645)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.24282645.svg)](https://doi.org/10.5281/zenodo.24282645) [![Preprint](https://img.shields.io/badge/preprint-MetaArXiv-blue)](https://doi.org/10.31222/osf.io/6r24v_v1)
 
 🎬 **Video guide (2 min):** https://youtu.be/wqCUJPEgjXQ · 🌐 **Try it online:** https://metapy-23.streamlit.app
 
@@ -224,4 +224,7 @@ Older number-based PRISMA input still works (it is converted to text and checked
 
 ## Author, license and citation
 
-MetaPy is written by Sadia Nadeem ([ORCID 0009-0008-5510-9456](https://orcid.org/0009-0008-5510-9456)) and released under the MIT License (see `LICENSE`). To cite it, see `CITATION.cff`.
+MetaPy is written by Sadia Nadeem ([ORCID 0009-0008-5510-9456](https://orcid.org/0009-0008-5510-9456)) and released under the MIT License (see `LICENSE`). To cite it, see `CITATION.cff`, or cite:
+
+- **The article (preprint):** Nadeem S. MetaPy: an open-source Python tool for transparent, provenance-tracked preparation of heterogeneously reported data and meta-analysis. *MetaArXiv*; 2026. https://doi.org/10.31222/osf.io/6r24v_v1
+- **The software:** Nadeem S. MetaPy [computer software]. Version 5.2.0. Zenodo; 2026. https://doi.org/10.5281/zenodo.24282645

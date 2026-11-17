@@ -18,5 +18,13 @@
     "network meta-analysis",
     "reproducibility",
     "Python"
+  ],
+  "related_identifiers": [
+    {
+      "identifier": "https://doi.org/10.31222/osf.io/6r24v_v1",
+      "relation": "isDescribedBy",
+      "resource_type": "publication-preprint",
+      "scheme": "url"
+    }
   ]
 }

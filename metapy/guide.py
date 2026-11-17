@@ -20,8 +20,11 @@ import pandas as pd
 from . import __version__
 
 VIDEO = "https://youtu.be/wqCUJPEgjXQ"
+PREPRINT = "https://doi.org/10.31222/osf.io/6r24v_v1"
 CITATION = (f"Nadeem S. MetaPy: transparent meta-analysis [computer software]. Version {__version__}. Zenodo. "
-            "https://doi.org/10.5281/zenodo.24282645")
+            "https://doi.org/10.5281/zenodo.24282645. Article: Nadeem S. MetaPy: an open-source Python tool for "
+            "transparent, provenance-tracked preparation of heterogeneously reported data and meta-analysis. "
+            "MetaArXiv preprint; 2026. https://doi.org/10.31222/osf.io/6r24v_v1")
 
 EXPLAIN = {
     "random": "Random effects: assumes the true effect differs somewhat between studies (different people, settings, "
